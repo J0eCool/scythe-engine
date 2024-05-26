@@ -5,9 +5,11 @@
 
 #include <SDL2/SDL.h>
 
+#include <windows.h>
+
 void checkSDL(bool cond, const char* msg) {
     if (!cond) {
-        printf("%s\nSDL_Error: %s", msg, SDL_GetError());
+        printf("%s\nSDL_Error: %s\n", msg, SDL_GetError());
         exit(1);
     }
 }
@@ -34,16 +36,53 @@ int main(int argc, char** argv) {
     SDL_UpdateWindowSurface(window);
 
     printf("setup complete\n");
-    fflush(stdout);
+
+    // Load game.dll
+    // first we make a copy, so that we can overwrite the original without
+    // windows yelling at us
+    const char* dllName = "game.dll";
+    const char* copyDllName = "_copy_game.dll";
+    if (!CopyFile(dllName, copyDllName, /*failIfExists*/ false)) {
+        printf("!!couldn't copy game.dll\n  Error: %d\n", GetLastError());
+    }
+    HMODULE gameLib = LoadLibrary(copyDllName);
+    if (!gameLib) {
+        printf("!!well the game lib didn't load\n");
+    }
+    int (__cdecl *getNum)() = (int(*)())GetProcAddress(gameLib, "getNum");
+    if (!getNum) {
+        printf("!!getNum didn't load\n");
+    }
 
     SDL_Event event;
     bool quit = false;
     while (!quit) {
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
+            switch (event.type) {
+            case SDL_QUIT:
                 quit = true;
+                break;
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym) {
+                case SDLK_ESCAPE:
+                    quit = true;
+                    break;
+                case SDLK_r:
+                    printf("reloading\n");
+                    FreeLibrary(gameLib);
+
+                    CopyFile(dllName, copyDllName, /*failIfExists*/ false);
+                    gameLib = LoadLibrary(copyDllName);
+                    getNum = (int(*)())GetProcAddress(gameLib, "getNum");
+                    break;
+                case SDLK_p:
+                    printf("dynamic num is: %d\n", getNum());
+                    break;
+                }
             }
         }
+
+        fflush(stdout);
         SDL_Delay(100);
     }
 

@@ -7,6 +7,14 @@ LINK="-lmingw32 -lSDL2main -lSDL2"
 
 # TODO: automatically copy relevant SDL .dlls to out dir
 
+# cleanup
+rm -f out/scythe
 mkdir -p out
+
+# build
 g++ src/scythe.cpp -o out/scythe ${INCLUDE} ${LIB} ${FLAGS} ${LINK}
-out/scythe
+g++ src/game.cpp -o out/game.dll -s -shared
+
+# run
+pushd out
+./scythe
