@@ -5,4 +5,3 @@ It's a C++ thing because I like it. Native-first, will port later.
 
 * It's got a cool name
 * Hot Reload - a must have
-* Multiple languages - I can't commit to one PL
