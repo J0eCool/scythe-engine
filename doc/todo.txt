@@ -1,0 +1,7 @@
+sorted roughly by likely-to-implement order
+
+- rendering in the dll
+- move a character via controlelr
+- game state stored in dll
+- auto-reload game.dll when it changes
+    - need to look up how to poll file metadata on windows

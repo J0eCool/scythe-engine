@@ -1,11 +1,15 @@
 // Scythe Engine main file
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <SDL2/SDL.h>
 
 #include <windows.h>
+
+static const float PI = 3.1415926535;
+static const float TAU = 2*PI;
 
 void checkSDL(bool cond, const char* msg) {
     if (!cond) {
@@ -35,7 +39,10 @@ int main(int argc, char** argv) {
     SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0xff, 0xff, 0xff));
     SDL_UpdateWindowSurface(window);
 
-    printf("setup complete\n");
+    auto renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    checkSDL(renderer, "renderer creation failed");
+
+    printf("SDL loaded\n");
 
     // Load game.dll
     // first we make a copy, so that we can overwrite the original without
@@ -54,9 +61,14 @@ int main(int argc, char** argv) {
         printf("!!getNum didn't load\n");
     }
 
+    printf("setup complete\n");
+
     SDL_Event event;
     bool quit = false;
+    float t = 0;
+    // Main game loop
     while (!quit) {
+        // Handle Input
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
             case SDL_QUIT:
@@ -82,8 +94,30 @@ int main(int argc, char** argv) {
             }
         }
 
+        // Update logic
+        t += 0.01;
+
+        // Drawing
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
+        // SDL_RenderDrawRect(renderer, nullptr);
+        SDL_RenderClear(renderer);
+
+        SDL_Rect rect;
+        rect.x = sin(t*TAU*0.3) * 200 + 400;
+        rect.y = cos(t*TAU*0.35) * 200 + 400;
+        rect.w = 60;
+        rect.h = 60;
+        // SDL_Color({255, 0, 0, 255});
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_RenderDrawRect(renderer, &rect);
+        SDL_Rect r2 = {rect.x+5, rect.y+5, 50, 50};
+        SDL_RenderFillRect(renderer, &r2);
+
+        SDL_RenderPresent(renderer);
+
+        // End-of-frame bookkeeping
         fflush(stdout);
-        SDL_Delay(100);
+        SDL_Delay(10);
     }
 
     SDL_DestroyWindow(window);
