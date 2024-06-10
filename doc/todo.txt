@@ -1,7 +1,8 @@
 sorted roughly by likely-to-implement order
 
-- rendering in the dll
 - move a character via controlelr
-- game state stored in dll
+- game state accessible in dll
+    - anything owned by the dll gets reinitialized on reload
 - auto-reload game.dll when it changes
     - need to look up how to poll file metadata on windows
+- auto-build game.dll when source files change

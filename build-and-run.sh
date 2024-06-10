@@ -1,3 +1,5 @@
+#!/usr/bin/sh
+
 # paths... hardcoded for now
 SDL2=../../SDL2-2.0.14/i686-w64-mingw32
 INCLUDE="-I${SDL2}/include"
@@ -12,8 +14,11 @@ rm -f out/scythe
 mkdir -p out
 
 # build
-g++ src/scythe.cpp -o out/scythe ${INCLUDE} ${LIB} ${FLAGS} ${LINK}
-g++ src/game.cpp -o out/game.dll -s -shared
+g++ -c -o out/render.o src/render.cpp
+ar rcs -o out/common.a out/render.o
+
+g++ -o out/scythe src/scythe.cpp out/common.a ${INCLUDE} ${LIB} ${FLAGS} ${LINK}
+./build-game.sh
 
 # run
 pushd out

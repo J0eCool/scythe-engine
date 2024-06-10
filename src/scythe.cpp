@@ -103,8 +103,6 @@ int main(int argc, char** argv) {
                     gameLib = LoadLibrary(copyDllName);
                     update = (update_t)GetProcAddress(gameLib, "update");
                     renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
-
-                    logging_enabled = true;
                     break;
                 case SDLK_l:
                     logging_enabled = !logging_enabled;
@@ -114,7 +112,9 @@ int main(int argc, char** argv) {
         }
 
         // Update logic
-        t += 0.01;
+        float dt = 0.01;
+        t += dt;
+        update(dt);
 
         // Drawing
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
@@ -149,10 +149,7 @@ int main(int argc, char** argv) {
                 rect.y = mem_itof(instrs[i+2]);
                 rect.w = mem_itof(instrs[i+3]);
                 rect.h = mem_itof(instrs[i+4]);
-                // rect.x = instrs[i+1];
-                // rect.y = instrs[i+2];
-                // rect.w = instrs[i+3];
-                // rect.h = instrs[i+4];
+
                 i += 4;
                 log(" args=%d,%d,%d,%d", rect.x, rect.y, rect.w, rect.h);
                 log(" raw=%d,%d,%d,%d", instrs[i+1], instrs[i+2], instrs[i+3], instrs[i+4]);

@@ -1,1 +1,3 @@
-g++ src/game.cpp -o out/game.dll -s -shared
+#!/usr/bin/sh
+
+g++ -o out/game.dll src/game.cpp out/common.a -s -shared
