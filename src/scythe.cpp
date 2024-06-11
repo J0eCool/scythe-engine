@@ -1,6 +1,7 @@
 // Scythe Engine main file
 
 #include "render.h"
+#include "render_sdl.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -73,9 +74,11 @@ int main(int argc, char** argv) {
     typedef int (__cdecl *update_t)(float);
     update_t update = (update_t)GetProcAddress(gameLib, "update");
     check(update, "update didn't load\n");
-    typedef const RenderInstr* (__cdecl *renderScene_t)();
+    typedef const void (__cdecl *renderScene_t)(Renderer*);
     renderScene_t renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
     check(renderScene, "renderScene didn't load\n");
+
+    Renderer_SDL dllRenderer(renderer);
 
     printf("setup complete\n");
 
@@ -133,41 +136,7 @@ int main(int argc, char** argv) {
         SDL_RenderFillRect(renderer, &r2);
 
         SDL_SetRenderDrawColor(renderer, 0, 200, 255, 255);
-        const RenderInstr* instrs = renderScene();
-        uint32_t n_instrs = instrs[0];
-        log("Rendering %d instructions\n", n_instrs);
-        for (int i = 1; i < n_instrs+1; ++i) {
-            auto instr = instrs[i];
-            log("Rendering i=%d, instr=%d: ", i, instr);
-            switch(instr) {
-            case DrawBox:
-                log("Transparent");
-            case DrawRect: {
-                log("DrawRect");
-                SDL_Rect rect;
-                rect.x = mem_itof(instrs[i+1]);
-                rect.y = mem_itof(instrs[i+2]);
-                rect.w = mem_itof(instrs[i+3]);
-                rect.h = mem_itof(instrs[i+4]);
-
-                i += 4;
-                log(" args=%d,%d,%d,%d", rect.x, rect.y, rect.w, rect.h);
-                log(" raw=%d,%d,%d,%d", instrs[i+1], instrs[i+2], instrs[i+3], instrs[i+4]);
-                if (instr == DrawRect) {
-                    SDL_RenderFillRect(renderer, &rect);
-                } else {
-                    SDL_RenderDrawRect(renderer, &rect);
-                }
-                break;
-            }
-            default: {
-                log("ERROR_UNKNOWN_INSTR");
-                break;
-            }
-            }
-            log("\n");
-        }
-        free((void*)instrs);
+        renderScene(&dllRenderer);
 
         SDL_RenderPresent(renderer);
 

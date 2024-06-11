@@ -14,10 +14,10 @@ rm -f out/scythe
 mkdir -p out
 
 # build
-g++ -c -o out/render.o src/render.cpp
-ar rcs -o out/common.a out/render.o
+# g++ -c -o out/render.o src/render.cpp
+# ar rcs -o out/common.a out/render.o
 
-g++ -o out/scythe src/scythe.cpp out/common.a ${INCLUDE} ${LIB} ${FLAGS} ${LINK}
+g++ -o out/scythe src/scythe.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK}
 ./build-game.sh
 
 # run
