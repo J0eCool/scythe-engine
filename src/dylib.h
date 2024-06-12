@@ -47,6 +47,7 @@ private:
 };
 
 #ifdef _WIN32
+
 static const char* copyDllName = "_copy_game.dll";
 void Dylib::load() {
     // first we make a copy, so that we can overwrite the original without
@@ -69,4 +70,5 @@ void Dylib::load() {
 void Dylib::unload() {
     FreeLibrary(_gameLib);
 }
+
 #endif

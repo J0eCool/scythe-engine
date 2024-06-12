@@ -1,9 +1,6 @@
 sorted roughly by likely-to-implement order
 
-- rebuild game.dll when pressing 'r'
 - move a character via controller
-- game state accessible in dll
-    - anything owned by the dll gets reinitialized on reload
-- auto-reload game.dll when it changes
+- rebuild the game on a background thread to avoid stutter
+- auto-rebuild game.dll when it changes
     - need to look up how to poll file metadata on windows
-- auto-build game.dll when source files change

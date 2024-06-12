@@ -67,8 +67,10 @@ int main(int argc, char** argv) {
                     quit = true;
                     break;
                 case SDLK_r:
-                    // printf("rebuilding...\n");
-                    // system("./build-game.sh");
+                    printf("rebuilding...\n");
+                    fflush(stdout);
+                    // `system` runs a command from where the exe is, so we cwd to root
+                    system("bash -c \"cd ..; ./build-game.sh\"");
 
                     printf("reloading...\n");
                     dll.reload();
