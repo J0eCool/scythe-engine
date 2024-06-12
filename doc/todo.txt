@@ -1,6 +1,7 @@
 sorted roughly by likely-to-implement order
 
-- move a character via controlelr
+- rebuild game.dll when pressing 'r'
+- move a character via controller
 - game state accessible in dll
     - anything owned by the dll gets reinitialized on reload
 - auto-reload game.dll when it changes

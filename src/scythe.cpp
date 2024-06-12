@@ -11,9 +11,6 @@
 
 #include <windows.h>
 
-static const float PI = 3.1415926535;
-static const float TAU = 2*PI;
-
 // a check is a nonfatal assert
 void check(bool cond, const char* msg) {
     if (!cond) {
@@ -71,10 +68,14 @@ int main(int argc, char** argv) {
     }
     HMODULE gameLib = LoadLibrary(copyDllName);
     check(gameLib, "well the game lib didn't load\n");
-    typedef int (__cdecl *update_t)(float);
+    typedef void* (*allocator_t)(size_t, size_t); // move this to a common.h or smth
+    typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
+    newGame_t newGame = (newGame_t)GetProcAddress(gameLib, "newGame");
+    check(newGame, "newGame didn't load\n");
+    typedef int (__cdecl *update_t)(void*, float);
     update_t update = (update_t)GetProcAddress(gameLib, "update");
     check(update, "update didn't load\n");
-    typedef const void (__cdecl *renderScene_t)(Renderer*);
+    typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
     renderScene_t renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
     check(renderScene, "renderScene didn't load\n");
 
@@ -84,7 +85,7 @@ int main(int argc, char** argv) {
 
     SDL_Event event;
     bool quit = false;
-    float t = 0;
+    void* game = newGame(calloc);
     // Main game loop
     while (!quit) {
         // Handle Input
@@ -104,6 +105,7 @@ int main(int argc, char** argv) {
 
                     CopyFile(dllName, copyDllName, /*failIfExists*/ false);
                     gameLib = LoadLibrary(copyDllName);
+                    newGame = (newGame_t)GetProcAddress(gameLib, "newGame");
                     update = (update_t)GetProcAddress(gameLib, "update");
                     renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
                     break;
@@ -116,27 +118,14 @@ int main(int argc, char** argv) {
 
         // Update logic
         float dt = 0.01;
-        t += dt;
-        update(dt);
+        update(game, dt);
 
         // Drawing
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
         // SDL_RenderDrawRect(renderer, nullptr);
         SDL_RenderClear(renderer);
 
-        SDL_Rect rect;
-        rect.x = sin(t*TAU*0.3) * 200 + 400;
-        rect.y = cos(t*TAU*0.35) * 200 + 400;
-        rect.w = 60;
-        rect.h = 60;
-        // SDL_Color({255, 0, 0, 255});
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_RenderDrawRect(renderer, &rect);
-        SDL_Rect r2 = {rect.x+5, rect.y+5, 50, 50};
-        SDL_RenderFillRect(renderer, &r2);
-
-        SDL_SetRenderDrawColor(renderer, 0, 200, 255, 255);
-        renderScene(&dllRenderer);
+        renderScene(game, &dllRenderer);
 
         SDL_RenderPresent(renderer);
 
@@ -144,6 +133,8 @@ int main(int argc, char** argv) {
         fflush(stdout);
         SDL_Delay(10);
     }
+
+    free(game);
 
     SDL_DestroyWindow(window);
     SDL_Quit();
