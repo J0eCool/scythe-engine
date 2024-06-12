@@ -1,34 +1,18 @@
 // Scythe Engine main file
 
+#include "common.h"
+#include "dylib.h"
 #include "render.h"
 #include "render_sdl.h"
 
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include <SDL2/SDL.h>
 
-#include <windows.h>
-
-// a check is a nonfatal assert
-void check(bool cond, const char* msg) {
-    if (!cond) {
-        printf("Error: %s\n");
-    }
-}
 void assert_SDL(bool cond, const char* msg) {
     if (!cond) {
         printf("Fatal Error: %s\nSDL_Error: %s\n", msg, SDL_GetError());
         exit(1);
-    }
-}
-
-bool logging_enabled = true;
-template <typename... Ts>
-void log(const char* fmt, Ts... args) {
-    if (logging_enabled) {
-        printf(fmt, args...);
     }
 }
 
@@ -59,25 +43,8 @@ int main(int argc, char** argv) {
     printf("SDL loaded\n");
 
     // Load game.dll
-    // first we make a copy, so that we can overwrite the original without
-    // windows yelling at us
     const char* dllName = "game.dll";
-    const char* copyDllName = "_copy_game.dll";
-    if (!CopyFile(dllName, copyDllName, /*failIfExists*/ false)) {
-        printf("!!couldn't copy game.dll\n  Error: %d\n", GetLastError());
-    }
-    HMODULE gameLib = LoadLibrary(copyDllName);
-    check(gameLib, "well the game lib didn't load\n");
-    typedef void* (*allocator_t)(size_t, size_t); // move this to a common.h or smth
-    typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
-    newGame_t newGame = (newGame_t)GetProcAddress(gameLib, "newGame");
-    check(newGame, "newGame didn't load\n");
-    typedef int (__cdecl *update_t)(void*, float);
-    update_t update = (update_t)GetProcAddress(gameLib, "update");
-    check(update, "update didn't load\n");
-    typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
-    renderScene_t renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
-    check(renderScene, "renderScene didn't load\n");
+    Dylib dll(dllName);
 
     Renderer_SDL dllRenderer(renderer);
 
@@ -85,7 +52,7 @@ int main(int argc, char** argv) {
 
     SDL_Event event;
     bool quit = false;
-    void* game = newGame(calloc);
+    void* game = dll.newGame(calloc);
     // Main game loop
     while (!quit) {
         // Handle Input
@@ -100,14 +67,11 @@ int main(int argc, char** argv) {
                     quit = true;
                     break;
                 case SDLK_r:
-                    printf("reloading\n");
-                    FreeLibrary(gameLib);
+                    // printf("rebuilding...\n");
+                    // system("./build-game.sh");
 
-                    CopyFile(dllName, copyDllName, /*failIfExists*/ false);
-                    gameLib = LoadLibrary(copyDllName);
-                    newGame = (newGame_t)GetProcAddress(gameLib, "newGame");
-                    update = (update_t)GetProcAddress(gameLib, "update");
-                    renderScene = (renderScene_t)GetProcAddress(gameLib, "renderScene");
+                    printf("reloading...\n");
+                    dll.reload();
                     break;
                 case SDLK_l:
                     logging_enabled = !logging_enabled;
@@ -118,14 +82,14 @@ int main(int argc, char** argv) {
 
         // Update logic
         float dt = 0.01;
-        update(game, dt);
+        dll.update(game, dt);
 
         // Drawing
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
         // SDL_RenderDrawRect(renderer, nullptr);
         SDL_RenderClear(renderer);
 
-        renderScene(game, &dllRenderer);
+        dll.renderScene(game, &dllRenderer);
 
         SDL_RenderPresent(renderer);
 
