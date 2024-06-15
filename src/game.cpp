@@ -38,6 +38,8 @@ const void renderScene(Game* game, Renderer* renderer) {
         sin(4*t)*300 + 350,
         cos(3.3*t)*100 + 150,
         40, 40);
+
+    renderer->drawText("Wow Dang", 40, 500);
 }
 
 } // extern "C"

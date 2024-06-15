@@ -1,6 +1,8 @@
 sorted roughly by likely-to-implement order
 
-- move a character via controller
+- split rendering out to its own .dll
+- move a character via mouse
+- get text rendering
 - rebuild the game on a background thread to avoid stutter
 - auto-rebuild game.dll when it changes
     - need to look up how to poll file metadata on windows

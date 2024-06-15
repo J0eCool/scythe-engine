@@ -10,6 +10,12 @@ void check(bool cond, const char* msg) {
         printf("Error: %s\n");
     }
 }
+void assert(bool cond, const char* msg) {
+    if (!cond) {
+        printf("Fatal Error: %s\n");
+        exit(1);
+    }
+}
 
 bool logging_enabled = true;
 template <typename... Ts>

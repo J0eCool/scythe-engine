@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 void assert_SDL(bool cond, const char* msg) {
     if (!cond) {
@@ -23,6 +24,11 @@ int main(int argc, char** argv) {
     printf("Hello world\n");
 
     assert_SDL(SDL_Init(SDL_INIT_VIDEO) >= 0, "sdl_init failed");
+    auto imgFlags = IMG_INIT_PNG;
+    if (IMG_Init(imgFlags) != imgFlags) {
+        printf("SDL_image failed to load\n%s\n", IMG_GetError());
+        exit(1);
+    }
 
     int screenWidth = 800;
     int screenHeight = 600;
@@ -102,6 +108,7 @@ int main(int argc, char** argv) {
 
     free(game);
 
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
