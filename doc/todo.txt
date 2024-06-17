@@ -6,3 +6,4 @@ sorted roughly by likely-to-implement order
 - rebuild the game on a background thread to avoid stutter
 - auto-rebuild game.dll when it changes
     - need to look up how to poll file metadata on windows
+- measure frame time and delay a dynamic amount

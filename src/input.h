@@ -20,12 +20,14 @@ struct ButtonState {
 class Input {
 public:
     virtual Vec2 getMousePos() const = 0;
-    virtual ButtonState getButtonState(std::string name) = 0;
+    virtual ButtonState getButtonState(std::string name) const = 0;
 
-    bool wasPressed(std::string name) {
+    // returns true iff the Action was pressed this frame
+    bool didPress(std::string name) {
         auto state = getButtonState(name);
         return state.pressed && !state.lastPressed;
     }
+    // returns true when the Action is held down
     bool isHeld(std::string name) {
         auto state = getButtonState(name);
         return state.lastPressed || state.pressed;

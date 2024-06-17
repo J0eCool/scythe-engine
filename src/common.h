@@ -28,5 +28,6 @@ template <typename... Ts>
 void log(const char* fmt, Ts... args) {
     if (logging_enabled) {
         printf(fmt, args...);
+        puts("");
     }
 }

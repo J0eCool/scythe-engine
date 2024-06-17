@@ -18,10 +18,7 @@ void assert_SDL(bool cond, const char* msg) {
 }
 
 int main(int argc, char** argv) {
-    // for now just hardcode SDL+OpenGL
-    // later on we'll really design the game-level abstractions we feel like
-    // sticking with, but until then let's just get a thing up and running
-    printf("Hello world\n");
+    // let's focus on geting a thing up and running
 
     assert_SDL(SDL_Init(SDL_INIT_VIDEO) >= 0, "sdl_init failed");
     auto imgFlags = IMG_INIT_PNG;
@@ -46,7 +43,7 @@ int main(int argc, char** argv) {
     auto renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     assert_SDL(renderer, "renderer creation failed");
 
-    printf("SDL loaded\n");
+    log("SDL loaded");
 
     // Load game.dll
     const char* dllName = "game.dll";
@@ -55,7 +52,12 @@ int main(int argc, char** argv) {
     Input_SDL input;
     Renderer_SDL dllRenderer(renderer);
 
-    printf("setup complete\n");
+    input.addKeybind("quit", SDLK_ESCAPE);
+    input.addKeybind("quit", SDLK_q);
+    input.addKeybind("reload", SDLK_r);
+    input.addKeybind("logging", SDLK_l);
+
+    log("setup complete");
 
     bool quit = false;
     void* game = dll.newGame(&input, calloc);
@@ -64,20 +66,22 @@ int main(int argc, char** argv) {
         // Handle Input
         input.update();
 
-        if (input.wasPressed("quit")) {
+        if (input.didPress("quit")) {
             quit = true;
         }
-        if (input.wasPressed("reload")) {
-            printf("rebuilding...\n");
+        if (input.didPress("reload")) {
+            log("rebuilding...");
             fflush(stdout);
             // `system` runs a command from where the exe is, so we cwd to root
             system("bash -c \"cd ..; ./build-game.sh\"");
 
-            printf("reloading...\n");
+            log("reloading...");
             dll.reload();
         }
-        if (input.wasPressed("logging")) {
+        if (input.didPress("logging")) {
+            log("logging: DISABLED");
             logging_enabled = !logging_enabled;
+            log("logging: ENABLED");
         }
 
         // Update logic
@@ -104,6 +108,6 @@ int main(int argc, char** argv) {
     SDL_DestroyWindow(window);
     SDL_Quit();
 
-    printf("everything went better than expected\n");
+    log("everything went better than expected");
     return 0;
 }

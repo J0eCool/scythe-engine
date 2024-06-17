@@ -12,8 +12,10 @@ using namespace std::literals;
 class Input_SDL : public Input {
     Vec2 _mousePos;
 
-    // name -> state mapping
+    // name -> state mapping for Actions
     std::map<std::string, ButtonState> buttons;
+    // keycode -> Action name
+    std::map<SDL_Keycode, std::string> keybinds;
 public:
     Input_SDL() {
     }
@@ -33,41 +35,24 @@ public:
                 buttons["quit"].pressed = true;
                 break;
             case SDL_KEYDOWN:
-                switch (event.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                case SDLK_q:
-                    buttons["quit"].pressed = true;
-                    break;
-                case SDLK_r:
-                    if (!isHeld("reload")) {
-                        buttons["reload"].pressed = true;
-                    }
-                    break;
-                case SDLK_l:
-                    buttons["logging"].pressed = true;
-                    break;
+            case SDL_KEYUP: {
+                auto it = keybinds.find(event.key.keysym.sym);
+                if (it == keybinds.end()) {
+                    continue;
                 }
-                break;
-            case SDL_KEYUP:
-                switch (event.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                case SDLK_q:
-                    if (isHeld("quit")) {
-                        buttons["quit"].pressed = false;
-                    }
-                    break;
-                case SDLK_r:
-                    if (isHeld("reload")) {
-                        buttons["reload"].pressed = false;
-                    }
-                    break;
-                case SDLK_l:
-                    if (isHeld("logging")) {
-                        buttons["logging"].pressed = false;
-                    }
-                    break;
+                bool press = event.type == SDL_KEYDOWN;
+                if (isHeld(it->second) != press) {
+                    buttons[it->second].pressed = press;
                 }
             }
+            }
+        }
+    }
+
+    void addKeybind(std::string name, SDL_Keycode key) {
+        keybinds[key] = name;
+        if (buttons.find(name) == buttons.end()) {
+            buttons[name] = {false, false};
         }
     }
 
@@ -75,8 +60,8 @@ public:
         return _mousePos;
     }
 
-    ButtonState getButtonState(std::string name) override {
-        // assert(buttons.find(name) != buttons.end(), "Unknown button name: \"%s\"\n", name.c_str());
-        return buttons[name];
+    ButtonState getButtonState(std::string name) const override {
+        assert(buttons.find(name) != buttons.end(), "Unknown button name: \"%s\"\n", name.c_str());
+        return buttons.at(name);
     }
 };
