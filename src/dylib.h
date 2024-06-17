@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "render.h"
+#include "input.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,6 +24,8 @@ private:
 public:
     typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
     newGame_t newGame;
+    typedef int (__cdecl *handleInput_t)(void*, Input*);
+    handleInput_t handleInput;
     typedef int (__cdecl *update_t)(void*, float);
     update_t update;
     typedef const void (__cdecl *renderScene_t)(void*, Renderer*);

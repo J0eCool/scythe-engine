@@ -6,8 +6,6 @@ There's a kernel for the engine that handles startup, asset loading, interfacing
 
 Game-specific logic is put into dynamically loaded libraries.
 
-There's a data API for persisting state between code updates. Ideally it can handle data migrations, so if fields are changed things still work. This could also be used for handling save data, since we're serializing the data anyway.
-
 ## Implementation
 
 There's a Dylib class responsible for handling the details of loading/reloading, as well as being the struct that holds the function pointers for the dynamically loaded code
