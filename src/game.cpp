@@ -1,4 +1,6 @@
+#include "input.h"
 #include "render.h"
+#include "vec.h"
 
 #include <math.h>
 
@@ -7,13 +9,22 @@ static const float TAU = 2*PI;
 
 struct Game {
     float t = 0.0;
+    Input* input;
 };
 
 extern "C" {
 
 __declspec(dllexport)
-Game* newGame(void* (*_calloc)(size_t, size_t)) {
-    return (Game*)_calloc(1, sizeof(Game));
+Game* newGame(Input* input, void* (*_calloc)(size_t, size_t)) {
+    Game* game = (Game*)_calloc(1, sizeof(Game));
+    new (game) Game;
+    game->input = input;
+    return game;
+}
+__declspec(dllexport)
+void quitGame(Game* game, void (*_free)(void*)) {
+    game->~Game();
+    _free(game);
 }
 
 __declspec(dllexport)
@@ -40,6 +51,10 @@ const void renderScene(Game* game, Renderer* renderer) {
         40, 40);
 
     renderer->drawText("Wow Dang", 40, 500);
+
+    Vec2 pos = game->input->getMousePos();
+    renderer->setColor(1, 1, 0, 1);
+    renderer->drawRect(pos.x - 15, pos.x - 15, 30, 30);
 }
 
 } // extern "C"

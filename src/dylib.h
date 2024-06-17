@@ -22,10 +22,10 @@ private:
     const char* _filename;
 
 public:
-    typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
+    typedef void* (__cdecl *newGame_t)(Input* input, allocator_t _calloc);
     newGame_t newGame;
-    typedef int (__cdecl *handleInput_t)(void*, Input*);
-    handleInput_t handleInput;
+    typedef void (__cdecl *quitGame_t)(void*, void (*_free)(void*));
+    quitGame_t quitGame;
     typedef int (__cdecl *update_t)(void*, float);
     update_t update;
     typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
@@ -64,6 +64,8 @@ void Dylib::load() {
     check(_gameLib, "_gameLib failed to load");
     newGame = (newGame_t)GetProcAddress(_gameLib, "newGame");
     check(newGame, "newGame didn't load");
+    quitGame = (quitGame_t)GetProcAddress(_gameLib, "quitGame");
+    check(quitGame, "quitGame didn't load");
     update = (update_t)GetProcAddress(_gameLib, "update");
     check(update, "update didn't load");
     renderScene = (renderScene_t)GetProcAddress(_gameLib, "renderScene");

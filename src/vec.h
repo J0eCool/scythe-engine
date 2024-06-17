@@ -3,6 +3,7 @@
 template <typename T>
 struct Vec2x {
     T x, y;
+    Vec2x() : x(0), y(0) {}
     Vec2x(T _x, T _y) : x(_x), y(_y) {}
 
     Vec2x operator+(Vec2x const& v) const {

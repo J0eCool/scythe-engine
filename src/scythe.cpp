@@ -2,7 +2,7 @@
 
 #include "common.h"
 #include "dylib.h"
-#include "render.h"
+#include "input_sdl.h"
 #include "render_sdl.h"
 
 #include <math.h>
@@ -52,40 +52,32 @@ int main(int argc, char** argv) {
     const char* dllName = "game.dll";
     Dylib dll(dllName);
 
+    Input_SDL input;
     Renderer_SDL dllRenderer(renderer);
 
     printf("setup complete\n");
 
-    SDL_Event event;
     bool quit = false;
-    void* game = dll.newGame(calloc);
+    void* game = dll.newGame(&input, calloc);
     // Main game loop
     while (!quit) {
         // Handle Input
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_QUIT:
-                quit = true;
-                break;
-            case SDL_KEYDOWN:
-                switch (event.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                    quit = true;
-                    break;
-                case SDLK_r:
-                    printf("rebuilding...\n");
-                    fflush(stdout);
-                    // `system` runs a command from where the exe is, so we cwd to root
-                    system("bash -c \"cd ..; ./build-game.sh\"");
+        input.update();
 
-                    printf("reloading...\n");
-                    dll.reload();
-                    break;
-                case SDLK_l:
-                    logging_enabled = !logging_enabled;
-                    break;
-                }
-            }
+        if (input.wasPressed("quit")) {
+            quit = true;
+        }
+        if (input.wasPressed("reload")) {
+            printf("rebuilding...\n");
+            fflush(stdout);
+            // `system` runs a command from where the exe is, so we cwd to root
+            system("bash -c \"cd ..; ./build-game.sh\"");
+
+            printf("reloading...\n");
+            dll.reload();
+        }
+        if (input.wasPressed("logging")) {
+            logging_enabled = !logging_enabled;
         }
 
         // Update logic

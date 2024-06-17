@@ -5,14 +5,20 @@
 #include <stdlib.h>
 
 // a check is a nonfatal assert
-void check(bool cond, const char* msg) {
+template <typename... Ts>
+void check(bool cond, const char* msg, Ts... args) {
     if (!cond) {
-        printf("Error: %s\n");
+        printf("Error: ");
+        printf(msg, args...);
+        puts("");
     }
 }
-void assert(bool cond, const char* msg) {
+template <typename... Ts>
+void assert(bool cond, const char* msg, Ts... args) {
     if (!cond) {
-        printf("Fatal Error: %s\n");
+        printf("Fatal Error: ");
+        printf(msg, args...);
+        puts("");
         exit(1);
     }
 }
