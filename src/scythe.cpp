@@ -57,10 +57,17 @@ int main(int argc, char** argv) {
     input.addKeybind("reload", SDLK_r);
     input.addKeybind("logging", SDLK_l);
 
+    input.addKeybind("left", SDLK_a);
+    input.addKeybind("right", SDLK_d);
+    input.addKeybind("up", SDLK_w);
+    input.addKeybind("down", SDLK_s);
+    input.addKeybind("jump", SDLK_k);
+    input.addKeybind("shoot", SDLK_j);
+
     log("setup complete");
 
     bool quit = false;
-    void* game = dll.newGame(&input, calloc);
+    void* game = dll.newGame(calloc);
     // Main game loop
     while (!quit) {
         // Handle Input
@@ -79,6 +86,8 @@ int main(int argc, char** argv) {
             dll.reload();
         }
         if (input.didPress("logging")) {
+            // two logging statements here, logging_enabled
+            // will only be true for one of them
             log("logging: DISABLED");
             logging_enabled = !logging_enabled;
             log("logging: ENABLED");
@@ -86,7 +95,7 @@ int main(int argc, char** argv) {
 
         // Update logic
         float dt = 0.01;
-        dll.update(game, dt);
+        dll.update(game, dt, &input);
 
         // Drawing
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);

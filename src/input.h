@@ -23,13 +23,17 @@ public:
     virtual ButtonState getButtonState(std::string name) const = 0;
 
     // returns true iff the Action was pressed this frame
-    bool didPress(std::string name) {
+    bool didPress(std::string name) const {
         auto state = getButtonState(name);
         return state.pressed && !state.lastPressed;
     }
     // returns true when the Action is held down
-    bool isHeld(std::string name) {
+    bool isHeld(std::string name) const {
         auto state = getButtonState(name);
         return state.lastPressed || state.pressed;
+    }
+
+    float getAxis(std::string negName, std::string posName) const {
+        return isHeld(posName) - isHeld(negName);
     }
 };

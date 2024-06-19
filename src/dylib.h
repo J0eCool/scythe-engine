@@ -22,11 +22,11 @@ private:
     const char* _filename;
 
 public:
-    typedef void* (__cdecl *newGame_t)(Input* input, allocator_t _calloc);
+    typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
     newGame_t newGame;
     typedef void (__cdecl *quitGame_t)(void*, void (*_free)(void*));
     quitGame_t quitGame;
-    typedef int (__cdecl *update_t)(void*, float);
+    typedef int (__cdecl *update_t)(void*, float, Input*);
     update_t update;
     typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
     renderScene_t renderScene;

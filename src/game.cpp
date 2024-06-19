@@ -3,22 +3,52 @@
 #include "vec.h"
 
 #include <math.h>
+#include <vector>
 
 static const float PI = 3.1415926535;
 static const float TAU = 2*PI;
 
+struct Bullet {
+    Vec2 _pos;
+    Vec2 _vel;
+    Vec2 _size;
+    float _lifespan;
+    float _lived;
+
+    Bullet(Vec2 pos, Vec2 vel, float lifespan)
+        : _pos(pos), _vel(vel), _size{20, 20},
+        _lifespan(lifespan), _lived(0) {
+    }
+
+    void update(float dt) {
+        _pos += dt*_vel;
+        _lived += dt;
+    }
+    bool shouldRemove() const {
+        if (_lived >= _lifespan) {
+            return true;
+        }
+        // if offscreen, remove early
+        Vec2 screen { 800, 600 };
+        if (_pos.x < -_size.x || _pos.x > screen.x) {
+            return true;
+        }
+        return false;
+    }
+};
+
 struct Game {
     float t = 0.0;
-    Input* input;
+    Vec2 pos { 300, 200 };
+    std::vector<Bullet> bullets;
 };
 
 extern "C" {
 
 __declspec(dllexport)
-Game* newGame(Input* input, void* (*_calloc)(size_t, size_t)) {
+Game* newGame(void* (*_calloc)(size_t, size_t)) {
     Game* game = (Game*)_calloc(1, sizeof(Game));
     new (game) Game;
-    game->input = input;
     return game;
 }
 __declspec(dllexport)
@@ -28,8 +58,16 @@ void quitGame(Game* game, void (*_free)(void*)) {
 }
 
 __declspec(dllexport)
-void update(Game* game, float dt) {
+void update(Game* game, float dt, const Input* input) {
     game->t += dt;
+
+    float speed = 250;
+    Vec2 move {
+        input->getAxis("left", "right"),
+        input->getAxis("up", "down"),
+    };
+    move = move.normalized();
+    game->pos += dt*speed * move;
 }
 
 __declspec(dllexport)
@@ -52,9 +90,8 @@ const void renderScene(Game* game, Renderer* renderer) {
 
     renderer->drawText("Wow Dang", 40, 500);
 
-    Vec2 pos = game->input->getMousePos();
     renderer->setColor(1, 1, 0, 1);
-    renderer->drawRect(pos.x - 15, pos.x - 15, 30, 30);
+    renderer->drawRect(game->pos.x - 15, game->pos.y - 15, 30, 30);
 }
 
 } // extern "C"
