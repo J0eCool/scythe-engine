@@ -32,6 +32,11 @@ public:
         auto state = getButtonState(name);
         return state.lastPressed || state.pressed;
     }
+    // returns true iff the Action was released this frame
+    bool didRelease(std::string name) const {
+        auto state = getButtonState(name);
+        return !state.pressed && state.lastPressed;
+    }
 
     float getAxis(std::string negName, std::string posName) const {
         return isHeld(posName) - isHeld(negName);
