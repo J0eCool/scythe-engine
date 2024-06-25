@@ -1,3 +1,4 @@
+#include "common.h"
 #include "input.h"
 #include "render.h"
 #include "vec.h"
@@ -69,15 +70,27 @@ struct Player : public Entity {
 
     void update(float dt) override {
         float speed = 300;
-        const float gravity = 3000;
-        float jumpHeight = 250;
+        const float accel = 600;
+        const float gravity = 2000;
+        float jumpHeight = 150;
 
-        _vel.x = speed * _input->getAxis("left", "right");
-        if (_vel.x > 0) {
+        float inDir = _input->getAxis("left", "right");
+        if (inDir > 0) {
             _facingRight = true;
-        } else if (_vel.x < 0) {
+        } else if (inDir < 0) {
             _facingRight = false;
         }
+        if (sign(inDir) != sign(_vel.x)) {
+            inDir -= sign(_vel.x) * 1.5;
+        }
+        float delta = dt*accel * inDir;
+        if (delta*_vel.x < 0 && abs(delta) > abs(_vel.x)) {
+            _vel.x = 0;
+        } else {
+            _vel.x += delta;
+        }
+        _vel.x = clamp(_vel.x, -speed, speed);
+        
         _vel.y += gravity*dt;
         if (_input->didPress("jump") && _isOnGround) {
             _vel.y = -sqrt(2*gravity*jumpHeight);
@@ -121,10 +134,9 @@ void update(Game* game, float dt, const Input* input) {
     game->t += dt;
 
     if (input->didPress("shoot")) {
-        Vec2 vel { (game->player._facingRight ? 1.0f : -1.0f) * 1500.0f, 0.0f };
+        Vec2 vel { (game->player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
         Bullet bullet {game->player._pos, vel, 1.5};
         game->bullets.push_back(bullet);
-        printf("firing, now at %d bullets\n", game->bullets.size());
     }
     int numToRemove = 0;
     for (int i = game->bullets.size() - 1; i >= 0; --i) {
@@ -158,7 +170,7 @@ const void renderScene(Game* game, Renderer* renderer) {
 
     renderer->setColor(0.8, 0.1, 0.7, 1.0);
     renderer->drawBox(
-        sin(4*t)*300 + 350,
+        sin(4.0*t)*300 + 350,
         cos(3.3*t)*100 + 150,
         40, 40);
 
