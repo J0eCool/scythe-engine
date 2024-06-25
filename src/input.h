@@ -19,8 +19,12 @@ struct ButtonState {
 
 class Input {
 public:
+    // current position of the mouse, in window coordinates
     virtual Vec2 getMousePos() const = 0;
+    // current state of a given button
     virtual ButtonState getButtonState(std::string name) const = 0;
+    // simple text editing, supports appending and backspace
+    virtual void editText(std::string &text) const = 0;
 
     // returns true iff the Action was pressed this frame
     bool didPress(std::string name) const {

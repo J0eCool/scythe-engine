@@ -64,6 +64,12 @@ int main(int argc, char** argv) {
     input.addKeybind("jump", SDLK_k);
     input.addKeybind("shoot", SDLK_j);
 
+    input.addKeybind("1", SDLK_1);
+    input.addKeybind("2", SDLK_2);
+    input.addKeybind("3", SDLK_3);
+    input.addKeybind("4", SDLK_4);
+    input.addKeybind("5", SDLK_5);
+
     log("setup complete");
 
     bool quit = false;

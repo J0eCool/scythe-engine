@@ -110,9 +110,84 @@ struct Player : public Entity {
 };
 
 struct Game {
+    int gameMode = 0;
     float t = 0.0;
-    Player player;
-    std::vector<Bullet> bullets;
+
+    // mode 1
+    Player _player;
+    std::vector<Bullet> _bullets;
+
+    // mode 2
+    std::vector<std::string> _journal;
+
+    Game() {
+        _journal.push_back("");
+    }
+
+    void updateMode1(float dt, const Input* input) {
+        if (input->didPress("shoot")) {
+            Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
+            Bullet bullet {_player._pos, vel, 1.5};
+            _bullets.push_back(bullet);
+        }
+        int numToRemove = 0;
+        for (int i = _bullets.size() - 1; i >= 0; --i) {
+            auto& bullet = _bullets[i];
+            bullet.update(dt);
+            if (bullet.shouldRemove()) {
+                // handle removal by swapping each bullet-to-remove to the end of the list
+                ++numToRemove;
+                std::swap(_bullets[i], _bullets[_bullets.size() - numToRemove]);
+            }
+        }
+        for (int i = 0; i < numToRemove; ++i) {
+            _bullets.pop_back();
+        }
+
+        _player._input = input;
+        _player.update(dt);
+    }
+    void renderMode1(Renderer* renderer) {
+        renderer->setColor(1.0, 1, 0, 1.0);
+        float x = sin(t*TAU*0.3) * 200 + 400;
+        float y = cos(t*TAU*0.23) * 200 + 400;
+        renderer->drawRect(x, y, 60, 60);
+        renderer->drawBox(x+5, y+5, 50, 50);
+
+        renderer->setColor(0.0, 0.3, 1.0, 1.0);
+        renderer->drawRect(75, 150, 75, 100);
+
+        renderer->setColor(0.8, 0.1, 0.7, 1.0);
+        renderer->drawBox(
+            sin(4.0*t)*300 + 350,
+            cos(3.3*t)*100 + 150,
+            40, 40);
+
+        renderer->drawText("Wow Dang", 40, 40);
+
+        renderer->setColor(0.3, 0.2, 0.1, 1);
+        renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
+
+        renderer->setColor(1, 1, 0, 1);
+        for (auto& bullet : _bullets) {
+            bullet.render(renderer);
+        }
+
+        renderer->setColor(0, 1, 1, 1);
+        _player.render(renderer);
+    }
+
+    void updateMode2(float dt, const Input* input) {
+        input->editText(_journal[_journal.size() - 1]);
+    }
+    void renderMode2(Renderer* renderer) {
+        for (int i = 0; i < _journal.size(); ++i) {
+            float c = 1.0 - i*0.1;
+            renderer->setColor(c, c, c, 1.0);
+            auto text = _journal[_journal.size() - 1 - i].c_str();
+            renderer->drawText(text, 40, 40 + 30*i);
+        }
+    }
 };
 
 extern "C" {
@@ -132,60 +207,26 @@ void quitGame(Game* game, void (*_free)(void*)) {
 __declspec(dllexport)
 void update(Game* game, float dt, const Input* input) {
     game->t += dt;
-
-    if (input->didPress("shoot")) {
-        Vec2 vel { (game->player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
-        Bullet bullet {game->player._pos, vel, 1.5};
-        game->bullets.push_back(bullet);
-    }
-    int numToRemove = 0;
-    for (int i = game->bullets.size() - 1; i >= 0; --i) {
-        auto& bullet = game->bullets[i];
-        bullet.update(dt);
-        if (bullet.shouldRemove()) {
-            // handle removal by swapping each bullet-to-remove to the end of the list
-            ++numToRemove;
-            std::swap(game->bullets[i], game->bullets[game->bullets.size() - numToRemove]);
-        }
-    }
-    for (int i = 0; i < numToRemove; ++i) {
-        game->bullets.pop_back();
+    if (input->didPress("1")) {
+        game->gameMode = 0;
+    } else if (input->didPress("2")) {
+        game->gameMode = 1;
     }
 
-    game->player._input = input;
-    game->player.update(dt);
+    if (game->gameMode == 0) {
+        game->updateMode1(dt, input);
+    } else if (game->gameMode == 1) {
+        game->updateMode2(dt, input);
+    }
 }
 
 __declspec(dllexport)
 const void renderScene(Game* game, Renderer* renderer) {
-    auto t = game->t;
-    renderer->setColor(1.0, 1, 0, 1.0);
-    float x = sin(t*TAU*0.3) * 200 + 400;
-    float y = cos(t*TAU*0.23) * 200 + 400;
-    renderer->drawRect(x, y, 60, 60);
-    renderer->drawBox(x+5, y+5, 50, 50);
-
-    renderer->setColor(0.0, 0.3, 1.0, 1.0);
-    renderer->drawRect(75, 150, 75, 100);
-
-    renderer->setColor(0.8, 0.1, 0.7, 1.0);
-    renderer->drawBox(
-        sin(4.0*t)*300 + 350,
-        cos(3.3*t)*100 + 150,
-        40, 40);
-
-    renderer->drawText("Wow Dang", 40, 40);
-
-    renderer->setColor(0.3, 0.2, 0.1, 1);
-    renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
-
-    renderer->setColor(1, 1, 0, 1);
-    for (auto& bullet : game->bullets) {
-        bullet.render(renderer);
+    if (game->gameMode == 0) {
+        game->renderMode1(renderer);
+    } else if (game->gameMode == 1) {
+        game->renderMode2(renderer);
     }
-
-    renderer->setColor(0, 1, 1, 1);
-    game->player.render(renderer);
 }
 
 } // extern "C"

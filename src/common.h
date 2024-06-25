@@ -38,7 +38,7 @@ void log(const char* fmt, Ts... args) {
 /// @tparam T numeric type parameter; anything that implements `<` and `>`
 /// @param val the value to clamp
 /// @param lo smallest value to return
-/// @param hi largets value to return
+/// @param hi largest value to return
 template <typename T>
 T clamp(T val, T lo, T hi) {
     if (val < lo) {
@@ -47,6 +47,24 @@ T clamp(T val, T lo, T hi) {
         return hi;
     } else {
         return val;
+    }
+}
+
+template <typename T>
+T min(T a, T b) {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+template <typename T>
+T max(T a, T b) {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
     }
 }
 
