@@ -1,9 +1,16 @@
 sorted roughly by likely-to-implement order
 
-- split rendering out to its own .dll
-- move a character via mouse
-- get text rendering
+- mouse input, controller input
 - rebuild the game on a background thread to avoid stutter
 - auto-rebuild game.dll when it changes
     - need to look up how to poll file metadata on windows
+- unit tests for input handling
 - measure frame time and delay a dynamic amount
+
+wontfix:
+- split rendering out to its own .dll
+    too much architecting for too little payoff atm
+    while it'd be nice to practice this microservice style of programming,
+    the main focus at the moment is "make game dev fun again"
+    and the renderer being in its own .dll doesn't spark joy there
+    As A Game Programmer: I don't care about how the renderer is implemented

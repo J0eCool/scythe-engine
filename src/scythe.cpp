@@ -20,7 +20,7 @@ void assert_SDL(bool cond, const char* msg) {
 int main(int argc, char** argv) {
     // let's focus on geting a thing up and running
 
-    assert_SDL(SDL_Init(SDL_INIT_VIDEO) >= 0, "sdl_init failed");
+    assert_SDL(SDL_Init(SDL_INIT_EVERYTHING) >= 0, "sdl_init failed");
     auto imgFlags = IMG_INIT_PNG;
     if (IMG_Init(imgFlags) != imgFlags) {
         printf("SDL_image failed to load\n%s\n", IMG_GetError());
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 
     // Load game.dll
     const char* dllName = "game.dll";
-    Dylib dll(dllName);
+    GameDylib dll(dllName);
 
     Input_SDL input;
     Renderer_SDL dllRenderer(renderer);

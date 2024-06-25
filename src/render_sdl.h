@@ -34,8 +34,23 @@ public:
     }
 
     void drawText(const char* text, float x, float y) override {
-        SDL_Rect srcRect {0, 0, 12, 28};
-        SDL_Rect dstRect {(int)x, (int)y, 12, 28};
-        SDL_RenderCopy(_sdlRenderer, _alphabetTexture, &srcRect, &dstRect);
+        int i = 0;
+        while (char c = text[i]) {
+            if (c >= 'a' && c <= 'z') {
+                c -= 'a' - 'A';
+            }
+            if (c < 'A' || c > 'Z') {
+                i++;
+                continue;
+            }
+            int j = (c - 'A') % 13;
+            int k = (c - 'A') / 13;
+            int w = 12;
+            int h = 28;
+            SDL_Rect srcRect {j*w, k*h, w, h};
+            SDL_Rect dstRect {(int)x + i*w, (int)y, w, h};
+            SDL_RenderCopy(_sdlRenderer, _alphabetTexture, &srcRect, &dstRect);
+            i++;
+        }
     }
 };

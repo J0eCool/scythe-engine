@@ -16,7 +16,7 @@ typedef HMODULE DylibHandle;
 
 typedef void* (*allocator_t)(size_t, size_t); // move this to a common.h or smth
 
-struct Dylib {
+struct GameDylib {
 private:
     DylibHandle _gameLib;
     const char* _filename;
@@ -31,11 +31,11 @@ public:
     typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
     renderScene_t renderScene;
 
-    Dylib(const char* filename) : _filename(filename) {
+    GameDylib(const char* filename) : _filename(filename) {
         load();
     }
 
-    ~Dylib() {
+    ~GameDylib() {
         unload();
     }
 
@@ -51,13 +51,14 @@ private:
 
 #ifdef _WIN32
 
-static const char* copyDllName = "_copy_game.dll";
-void Dylib::load() {
+void GameDylib::load() {
     // first we make a copy, so that we can overwrite the original without
     // windows yelling at us
+    static const char* copyDllName = "_copy_game.dll";
     if (!CopyFile(_filename, copyDllName, /*failIfExists*/ false)) {
         printf("!!couldn't copy %s\n", _filename);
-        printf("  Error: %d\n", GetLastError());
+        printf("  Fatal Error: %d\n", GetLastError());
+        exit(1);
     }
 
     _gameLib = LoadLibrary(copyDllName);
@@ -72,7 +73,7 @@ void Dylib::load() {
     check(renderScene, "renderScene didn't load");
 }
 
-void Dylib::unload() {
+void GameDylib::unload() {
     FreeLibrary(_gameLib);
 }
 
