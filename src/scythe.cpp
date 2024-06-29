@@ -53,7 +53,6 @@ int main(int argc, char** argv) {
     Renderer_SDL dllRenderer(renderer);
 
     input.addKeybind("quit", SDLK_ESCAPE);
-    input.addKeybind("quit", SDLK_q);
     input.addKeybind("reload", SDLK_r);
     input.addKeybind("logging", SDLK_l);
 
@@ -71,6 +70,18 @@ int main(int argc, char** argv) {
     input.addKeybind("5", SDLK_5);
 
     log("setup complete");
+
+    int displayIdx = 0; // bruh
+    SDL_DisplayMode dm;
+    SDL_GetCurrentDisplayMode(displayIdx, &dm);
+    log("current display mode: %dx%d @%dHz (%s)",
+        dm.w, dm.h, dm.refresh_rate,
+        SDL_GetPixelFormatName(dm.format));
+    SDL_Window* bonusWindow = SDL_CreateWindow(
+        "BONUS",
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        300, 400,
+        SDL_WINDOW_SHOWN);
 
     bool quit = false;
     void* game = dll.newGame(calloc);
@@ -111,6 +122,13 @@ int main(int argc, char** argv) {
         dll.renderScene(game, &dllRenderer);
 
         SDL_RenderPresent(renderer);
+
+
+        static float t = 0;
+        t += dt;
+        int wx, wy;
+        SDL_GetWindowPosition(window, &wx, &wy);
+        SDL_SetWindowPosition(bonusWindow, wx + screenWidth, wy);
 
         // End-of-frame bookkeeping
         fflush(stdout);

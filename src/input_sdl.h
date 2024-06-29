@@ -39,24 +39,36 @@ public:
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
-            case SDL_QUIT:
+            case SDL_WINDOWEVENT: {
+                if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
+                    _buttons["quit"].pressed = true;
+                }
+                break;
+            }
+            case SDL_QUIT: {
                 _buttons["quit"].pressed = true;
                 break;
+            }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
                 auto sym = event.key.keysym.sym;
+                bool isPress = event.type == SDL_KEYDOWN;
+                if (isPress) {
+                    //  handle logic for typing; this kinda sucks ngl
+                    bool isText = sym >= SDLK_a && sym <= SDLK_z
+                        || sym == SDLK_SPACE;
+                    if (isText) {
+                        _appendText += sym;
+                    } else if (sym == SDLK_BACKSPACE) {
+                        _backspaces++;
+                    }
+                }
                 auto it = _keybinds.find(event.key.keysym.sym);
                 if (it == _keybinds.end()) {
                     continue;
                 }
-                bool press = event.type == SDL_KEYDOWN;
-                if (isHeld(it->second) != press) {
-                    _buttons[it->second].pressed = press;
-                }
-                if (sym >= SDLK_a && sym <= SDLK_z
-                        || sym == SDLK_SPACE) {
-                    _appendText += sym;
-                }
+                _buttons[it->second].pressed = isPress;
+                break;
             }
             }
         }
