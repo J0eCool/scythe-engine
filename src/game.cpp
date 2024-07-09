@@ -124,7 +124,7 @@ struct Game {
         _journal.push_back("");
     }
 
-    void updateMode1(float dt, const Input* input) {
+    void update(float dt, const Input* input) {
         if (input->didPress("shoot")) {
             Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
             Bullet bullet {_player._pos, vel, 1.5};
@@ -147,7 +147,7 @@ struct Game {
         _player._input = input;
         _player.update(dt);
     }
-    void renderMode1(Renderer* renderer) {
+    void render(Renderer* renderer) {
         renderer->setColor(1.0, 1, 0, 1.0);
         float x = sin(t*TAU*0.3) * 200 + 400;
         float y = cos(t*TAU*0.23) * 200 + 400;
@@ -163,7 +163,9 @@ struct Game {
             cos(3.3*t)*100 + 150,
             40, 40);
 
-        renderer->drawText("Wow Dang", 40, 40);
+        renderer->drawText("You are big stupid", 40, 40);
+        renderer->drawText("Look at you", 226, 90);
+        renderer->drawText("monster", 137, 244);
 
         renderer->setColor(0.3, 0.2, 0.1, 1);
         renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
@@ -175,18 +177,6 @@ struct Game {
 
         renderer->setColor(0, 1, 1, 1);
         _player.render(renderer);
-    }
-
-    void updateMode2(float dt, const Input* input) {
-        input->editText(_journal[_journal.size() - 1]);
-    }
-    void renderMode2(Renderer* renderer) {
-        for (int i = 0; i < _journal.size(); ++i) {
-            float c = 1.0 - i*0.1;
-            renderer->setColor(c, c, c, 1.0);
-            auto text = _journal[_journal.size() - 1 - i].c_str();
-            renderer->drawText(text, 40, 40 + 30*i);
-        }
     }
 };
 
@@ -207,26 +197,12 @@ void quitGame(Game* game, void (*_free)(void*)) {
 __declspec(dllexport)
 void update(Game* game, float dt, const Input* input) {
     game->t += dt;
-    if (input->didPress("1")) {
-        game->gameMode = 0;
-    } else if (input->didPress("2")) {
-        game->gameMode = 1;
-    }
-
-    if (game->gameMode == 0) {
-        game->updateMode1(dt, input);
-    } else if (game->gameMode == 1) {
-        game->updateMode2(dt, input);
-    }
+    game->update(dt, input);
 }
 
 __declspec(dllexport)
 const void renderScene(Game* game, Renderer* renderer) {
-    if (game->gameMode == 0) {
-        game->renderMode1(renderer);
-    } else if (game->gameMode == 1) {
-        game->renderMode2(renderer);
-    }
+    game->render(renderer);
 }
 
 } // extern "C"
