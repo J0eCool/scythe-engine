@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <SDL2/SDL.h>
+
 // a check is a nonfatal assert
 template <typename... Ts>
 void check(bool cond, const char* msg, Ts... args) {
@@ -23,6 +25,12 @@ void assert(bool cond, const char* msg, Ts... args) {
     }
 }
 
+void assert_SDL(bool cond, const char* msg) {
+    if (!cond) {
+        printf("Fatal Error: %s\nSDL_Error: %s\n", msg, SDL_GetError());
+        exit(1);
+    }
+}
 bool logging_enabled = true;
 template <typename... Ts>
 void log(const char* fmt, Ts... args) {

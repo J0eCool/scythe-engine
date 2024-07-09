@@ -28,7 +28,7 @@ public:
     quitGame_t quitGame;
     typedef int (__cdecl *update_t)(void*, float, Input*);
     update_t update;
-    typedef const void (__cdecl *renderScene_t)(void*, Renderer*);
+    typedef const void (__cdecl *renderScene_t)(void*);
     renderScene_t renderScene;
 
     GameDylib(const char* filename) : _filename(filename) {

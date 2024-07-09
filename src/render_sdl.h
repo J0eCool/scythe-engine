@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.h"
 #include "render.h"
 
 #include <SDL2/SDL.h>
@@ -35,12 +36,11 @@ public:
 
     void drawText(const char* text, float x, float y) override {
         int i = 0;
-        while (char c = text[i]) {
+        while (char c = text[i++]) {
             if (c >= 'a' && c <= 'z') {
                 c -= 'a' - 'A';
             }
             if (c < 'A' || c > 'Z') {
-                i++;
                 continue;
             }
             int j = (c - 'A') % 13;
@@ -48,9 +48,12 @@ public:
             int w = 12;
             int h = 28;
             SDL_Rect srcRect {j*w, k*h, w, h};
-            SDL_Rect dstRect {(int)x + i*w, (int)y, w, h};
+            SDL_Rect dstRect {(int)x + (i-1)*w, (int)y, w, h};
             SDL_RenderCopy(_sdlRenderer, _alphabetTexture, &srcRect, &dstRect);
-            i++;
         }
+    }
+
+    SDL_Renderer* sdl() const {
+        return _sdlRenderer;
     }
 };

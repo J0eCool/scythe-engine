@@ -3,19 +3,11 @@
 #include "common.h"
 #include "dylib.h"
 #include "input_sdl.h"
-#include "render_sdl.h"
 
 #include <math.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
-
-void assert_SDL(bool cond, const char* msg) {
-    if (!cond) {
-        printf("Fatal Error: %s\nSDL_Error: %s\n", msg, SDL_GetError());
-        exit(1);
-    }
-}
 
 int main(int argc, char** argv) {
     // let's focus on geting a thing up and running
@@ -27,22 +19,6 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    int screenWidth = 800;
-    int screenHeight = 600;
-    SDL_Window* window = SDL_CreateWindow(
-        "Scythe",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        screenWidth, screenHeight,
-        SDL_WINDOW_SHOWN);
-    assert_SDL(window, "window creation failed");
-
-    SDL_Surface* screen = SDL_GetWindowSurface(window);
-    SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0xff, 0xff, 0xff));
-    SDL_UpdateWindowSurface(window);
-
-    auto renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    assert_SDL(renderer, "renderer creation failed");
-
     log("SDL loaded");
 
     // Load game.dll
@@ -50,7 +26,6 @@ int main(int argc, char** argv) {
     GameDylib dll(dllName);
 
     Input_SDL input;
-    Renderer_SDL dllRenderer(renderer);
 
     input.addKeybind("quit", SDLK_ESCAPE);
     input.addKeybind("reload", SDLK_r);
@@ -102,24 +77,15 @@ int main(int argc, char** argv) {
         float dt = 0.01;
         dll.update(game, dt, &input);
 
-        // Drawing
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
-        // SDL_RenderDrawRect(renderer, nullptr);
-        SDL_RenderClear(renderer);
-
-        dll.renderScene(game, &dllRenderer);
-
-        SDL_RenderPresent(renderer);
+        dll.renderScene(game);
 
         // End-of-frame bookkeeping
         fflush(stdout);
         SDL_Delay(10);
     }
 
-    free(game);
+    dll.quitGame(game, free);
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
     SDL_Quit();
 
     log("everything went better than expected");
