@@ -125,7 +125,7 @@ struct Game {
     const int screenHeight = 600;
     Game(void* (*_calloc)(size_t, size_t)) {
         _window = SDL_CreateWindow(
-            "This Game Is My Suicide Note",
+            "This Game Is My Second Chance",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             screenWidth, screenHeight,
             SDL_WINDOW_SHOWN);
@@ -191,9 +191,9 @@ struct Game {
             cos(3.3*t)*100 + 150,
             40, 40);
 
-        _renderer->drawText("You are big stupid", 40, 40);
+        _renderer->drawText("You are big silly", 40, 40);
         _renderer->drawText("Look at you", 226, 90);
-        _renderer->drawText("monster", 137, 244);
+        _renderer->drawText("maestro", 137, 244);
 
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
@@ -205,6 +205,32 @@ struct Game {
 
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
+
+        // texture funsies
+        auto sdl = _renderer->sdl();
+        static SDL_Texture *texture = nullptr;
+        if (!texture) {
+            int w = 128;
+            int h = 128;
+            int bpp = 32;
+            SDL_Surface *surface = SDL_CreateRGBSurface(0, w, h, bpp, 0, 0, 0, 0);
+            for (int y = 0; y < h; ++y) {
+                for (int x = 0; x < w; ++x) {
+                    Uint32 *pixel = (Uint32*)((Uint8*)surface->pixels
+                        + y*surface->pitch
+                        + x*surface->format->BytesPerPixel);
+                    *pixel = 0x00ff0000 * (x > y)
+                        + 0x0000ff00 * (x + y/2 > 108)
+                        + 0x000000ff * (x*(128-y) < 48*48);
+                }
+            }
+            texture = SDL_CreateTextureFromSurface(sdl, surface);
+            SDL_FreeSurface(surface);
+            // this still leaks the texture data on reload, but I'm going to
+            // pretend I don't see that right now
+        }
+        SDL_Rect destRect { 440, 180, 256, 256 };
+        SDL_RenderCopy(sdl, texture, nullptr, &destRect);
     }
 };
 
