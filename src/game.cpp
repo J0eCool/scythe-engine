@@ -116,6 +116,7 @@ struct Game {
     Renderer* _renderer;
     int gameMode = 0;
     float t = 0.0;
+    SDL_Texture *_texture = nullptr;
 
     Player _player;
     std::vector<Bullet> _bullets;
@@ -143,6 +144,7 @@ struct Game {
     }
 
     ~Game() {
+        SDL_DestroyTexture(_texture);
         SDL_DestroyRenderer(_renderer->sdl());
         SDL_DestroyWindow(_window);
 
@@ -150,7 +152,46 @@ struct Game {
         // just leak it for now, should only be when exiting the program so nbd
     }
 
+    void createTexture() {
+        auto sdl = _renderer->sdl();
+        if (_texture) {
+            SDL_DestroyTexture(_texture);
+        }
+        int w = 128;
+        int h = 128;
+        int bpp = 32;
+        SDL_Surface *surface = SDL_CreateRGBSurface(
+            0, w, h, bpp,
+            0xff, 0xff << 8, 0xff << 16, 0);
+        struct Color {
+            Uint8 r, g, b, a;
+        };
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                Color *pixel = (Color*)((Uint8*)surface->pixels
+                    + y*surface->pitch
+                    + x*surface->format->BytesPerPixel);
+                *pixel = {
+                    (Uint8)(0xff*(x > y)),
+                    (Uint8)(0xff*(x + y/2 > 108)),
+                    (Uint8)(0xff*(x*(128-y) < 48*48)),
+                    0xff
+                };
+            }
+        }
+        _texture = SDL_CreateTextureFromSurface(sdl, surface);
+        SDL_FreeSurface(surface);
+    }
+
     void update(float dt, const Input* input) {
+        static bool justLoaded = true;
+        if (justLoaded) {
+            // detects when the dll was reloaded
+            // ... we may want to explicitly model this as a function but, details
+            justLoaded = false;
+            createTexture();
+        }
+
         if (input->didPress("shoot")) {
             Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
             Bullet bullet {_player._pos, vel, 1.5};
@@ -175,38 +216,8 @@ struct Game {
     }
     void render() {
         // texture funsies
-        auto sdl = _renderer->sdl();
-        static SDL_Texture *texture = nullptr;
-        if (!texture) {
-            int w = 128;
-            int h = 128;
-            int bpp = 32;
-            SDL_Surface *surface = SDL_CreateRGBSurface(
-                0, w, h, bpp,
-                0xff, 0xff << 8, 0xff << 16, 0);
-            struct Color {
-                Uint8 r, g, b, a;
-            };
-            for (int y = 0; y < h; ++y) {
-                for (int x = 0; x < w; ++x) {
-                    Color *pixel = (Color*)((Uint8*)surface->pixels
-                        + y*surface->pitch
-                        + x*surface->format->BytesPerPixel);
-                    *pixel = {
-                        (Uint8)(0xff*(x > y)),
-                        (Uint8)(0xff*(x + y/2 > 108)),
-                        (Uint8)(0xff*(x*(128-y) < 48*48)),
-                        0xff
-                    };
-                }
-            }
-            texture = SDL_CreateTextureFromSurface(sdl, surface);
-            SDL_FreeSurface(surface);
-            // this leaks the texture data on reload, but I'm going to
-            // pretend I don't see that right now
-        }
         SDL_Rect destRect { 400, 40, 3*128, 3*128 };
-        SDL_RenderCopy(sdl, texture, nullptr, &destRect);
+        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
 
         _renderer->setColor(1.0, 1, 0, 1.0);
         float x = sin(t*TAU*0.3) * 200 + 400;
