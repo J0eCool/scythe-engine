@@ -148,8 +148,7 @@ struct Game {
         SDL_DestroyWindow(_window);
 
         // _free(_renderer);
-        // eh just leak it
-        // a recurring theme: I won't have to worry about this because I'll be dead
+        // just leak it for now, should only be when exiting the program so nbd
     }
 
     void update(float dt, const Input* input) {
@@ -213,15 +212,23 @@ struct Game {
             int w = 128;
             int h = 128;
             int bpp = 32;
-            SDL_Surface *surface = SDL_CreateRGBSurface(0, w, h, bpp, 0, 0, 0, 0);
+            SDL_Surface *surface = SDL_CreateRGBSurface(
+                0, w, h, bpp,
+                0xff, 0xff << 8, 0xff << 16, 0);
+            struct Color {
+                Uint8 r, g, b, a;
+            };
             for (int y = 0; y < h; ++y) {
                 for (int x = 0; x < w; ++x) {
-                    Uint32 *pixel = (Uint32*)((Uint8*)surface->pixels
+                    Color *pixel = (Color*)((Uint8*)surface->pixels
                         + y*surface->pitch
                         + x*surface->format->BytesPerPixel);
-                    *pixel = 0x00ff0000 * (x > y)
-                        + 0x0000ff00 * (x + y/2 > 108)
-                        + 0x000000ff * (x*(128-y) < 48*48);
+                    *pixel = {
+                        (Uint8)(0xff*(x > y)),
+                        (Uint8)(0xff*(x + y/2 > 108)),
+                        (Uint8)(0xff*(x*(128-y) < 48*48)),
+                        0xff
+                    };
                 }
             }
             texture = SDL_CreateTextureFromSurface(sdl, surface);
