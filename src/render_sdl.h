@@ -1,40 +1,43 @@
 #pragma once
 
 #include "common.h"
-#include "render.h"
+#include "vec.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-class Renderer_SDL : public Renderer {
+class Renderer {
     SDL_Renderer* _sdlRenderer;
     SDL_Texture *_alphabetTexture;
 
 public:
-    Renderer_SDL(SDL_Renderer* sdl) : _sdlRenderer(sdl) {
+    Renderer(SDL_Renderer* sdl) : _sdlRenderer(sdl) {
         SDL_Surface *surf = IMG_Load("../data/alpha.png");
         assert(surf, "alpha.png failed to load");
         _alphabetTexture = SDL_CreateTextureFromSurface(_sdlRenderer, surf);
         SDL_FreeSurface(surf);
     }
 
-    ~Renderer_SDL() override {
+    ~Renderer() {
         SDL_DestroyTexture(_alphabetTexture);
     }
 
-    void setColor(float r, float g, float b, float a) override {
+    void setColor(float r, float g, float b, float a) {
         SDL_SetRenderDrawColor(_sdlRenderer, 255*r, 255*g, 255*b, 255*a);
     }
-    void drawRect(float x, float y, float w, float h) override {
+    void drawRect(float x, float y, float w, float h) {
         SDL_Rect rect {(int)x,(int)y,(int)w,(int)h};
         SDL_RenderFillRect(_sdlRenderer, &rect);
     }
-    void drawBox(float x, float y, float w, float h) override {
+    void drawRect(Vec2 pos, Vec2 size) {
+        drawRect(pos.x, pos.y, size.x, size.y);
+    }
+    void drawBox(float x, float y, float w, float h) {
         SDL_Rect rect {(int)x, (int)y, (int)w, (int)h};
         SDL_RenderDrawRect(_sdlRenderer, &rect);
     }
 
-    void drawText(const char* text, float x, float y) override {
+    void drawText(const char* text, float x, float y) {
         int i = 0;
         while (char c = text[i++]) {
             if (c >= 'a' && c <= 'z') {

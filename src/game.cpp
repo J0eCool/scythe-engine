@@ -1,6 +1,5 @@
 #include "common.h"
 #include "input.h"
-#include "render.h"
 #include "render_sdl.h"
 #include "vec.h"
 
@@ -114,7 +113,7 @@ struct Player : public Entity {
 
 struct Game {
     SDL_Window* _window;
-    Renderer_SDL* _renderer;
+    Renderer* _renderer;
     int gameMode = 0;
     float t = 0.0;
 
@@ -139,8 +138,8 @@ struct Game {
         assert_SDL(renderer, "renderer creation failed");
         /// HACK: we should probably allocate _renderer directly as a struct member
         /// we heap-allocate it because it's easier than dealing with constructor shenanigans
-        _renderer = (Renderer_SDL*)_calloc(1, sizeof(Renderer_SDL));
-        new (_renderer) Renderer_SDL(renderer);
+        _renderer = (Renderer*)_calloc(1, sizeof(Renderer));
+        new (_renderer) Renderer(renderer);
     }
 
     ~Game() {
@@ -175,6 +174,40 @@ struct Game {
         _player.update(dt);
     }
     void render() {
+        // texture funsies
+        auto sdl = _renderer->sdl();
+        static SDL_Texture *texture = nullptr;
+        if (!texture) {
+            int w = 128;
+            int h = 128;
+            int bpp = 32;
+            SDL_Surface *surface = SDL_CreateRGBSurface(
+                0, w, h, bpp,
+                0xff, 0xff << 8, 0xff << 16, 0);
+            struct Color {
+                Uint8 r, g, b, a;
+            };
+            for (int y = 0; y < h; ++y) {
+                for (int x = 0; x < w; ++x) {
+                    Color *pixel = (Color*)((Uint8*)surface->pixels
+                        + y*surface->pitch
+                        + x*surface->format->BytesPerPixel);
+                    *pixel = {
+                        (Uint8)(0xff*(x > y)),
+                        (Uint8)(0xff*(x + y/2 > 108)),
+                        (Uint8)(0xff*(x*(128-y) < 48*48)),
+                        0xff
+                    };
+                }
+            }
+            texture = SDL_CreateTextureFromSurface(sdl, surface);
+            SDL_FreeSurface(surface);
+            // this leaks the texture data on reload, but I'm going to
+            // pretend I don't see that right now
+        }
+        SDL_Rect destRect { 400, 40, 3*128, 3*128 };
+        SDL_RenderCopy(sdl, texture, nullptr, &destRect);
+
         _renderer->setColor(1.0, 1, 0, 1.0);
         float x = sin(t*TAU*0.3) * 200 + 400;
         float y = cos(t*TAU*0.23) * 200 + 400;
@@ -204,40 +237,6 @@ struct Game {
 
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
-
-        // texture funsies
-        auto sdl = _renderer->sdl();
-        static SDL_Texture *texture = nullptr;
-        if (!texture) {
-            int w = 128;
-            int h = 128;
-            int bpp = 32;
-            SDL_Surface *surface = SDL_CreateRGBSurface(
-                0, w, h, bpp,
-                0xff, 0xff << 8, 0xff << 16, 0);
-            struct Color {
-                Uint8 r, g, b, a;
-            };
-            for (int y = 0; y < h; ++y) {
-                for (int x = 0; x < w; ++x) {
-                    Color *pixel = (Color*)((Uint8*)surface->pixels
-                        + y*surface->pitch
-                        + x*surface->format->BytesPerPixel);
-                    *pixel = {
-                        (Uint8)(0xff*(x > y)),
-                        (Uint8)(0xff*(x + y/2 > 108)),
-                        (Uint8)(0xff*(x*(128-y) < 48*48)),
-                        0xff
-                    };
-                }
-            }
-            texture = SDL_CreateTextureFromSurface(sdl, surface);
-            SDL_FreeSurface(surface);
-            // this still leaks the texture data on reload, but I'm going to
-            // pretend I don't see that right now
-        }
-        SDL_Rect destRect { 440, 180, 256, 256 };
-        SDL_RenderCopy(sdl, texture, nullptr, &destRect);
     }
 };
 

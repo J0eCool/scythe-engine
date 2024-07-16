@@ -3,7 +3,6 @@
 #pragma once
 
 #include "common.h"
-#include "render.h"
 #include "input.h"
 
 #ifdef _WIN32
