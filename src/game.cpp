@@ -152,31 +152,92 @@ struct Game {
         // just leak it for now, should only be when exiting the program so nbd
     }
 
+    float randFloat() {
+        return (float)rand() / RAND_MAX;
+    }
+    float randFloat(float lo, float hi) {
+        return lerp(randFloat(), lo, hi);
+    }
+    Uint8 randByte() {
+        return rand() % 0x100;
+    }
+    // idk if this is useful anywhere else, or what to call it
+    float lerp_between(float x, float a, float b, float lo, float hi) {
+        float t = (x - a) / (b - a);
+        return lerp(t, lo, hi);
+    }
     void createTexture() {
+        // srand(1337);
         auto sdl = _renderer->sdl();
         if (_texture) {
             SDL_DestroyTexture(_texture);
         }
-        int w = 128;
-        int h = 128;
+        // noise width/height
+        int nw = 4;
+        int nh = 4;
+        struct Sample {
+            // value, x-offset, y-offset
+            float v, x, y;
+        };
+        Sample noise[nh][nw]; // stored HxW for cache friendliness later (lol)
+        for (int y = 0; y < nh; ++y) {
+            for (int x = 0; x < nw; ++x) {
+                noise[y][x] = {
+                    randFloat(0.0, 1.0),
+                    // todo: reenable position scattering
+                    randFloat(0.0, 0.0),
+                    randFloat(0.0, 0.0),
+                };
+            }
+        }
+
+        // image width/height
+        int iw = 128;
+        int ih = 128;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
-            0, w, h, bpp,
+            0, iw, ih, bpp,
+            // RGBA bitmasks; A mask is special
             0xff, 0xff << 8, 0xff << 16, 0);
         struct Color {
             Uint8 r, g, b, a;
         };
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
+        for (int y = 0; y < ih; ++y) {
+            for (int x = 0; x < iw; ++x) {
                 Color *pixel = (Color*)((Uint8*)surface->pixels
                     + y*surface->pitch
                     + x*surface->format->BytesPerPixel);
-                *pixel = {
-                    (Uint8)(0xff*(x > y)),
-                    (Uint8)(0xff*(x + y/2 > 108)),
-                    (Uint8)(0xff*(x*(128-y) < 48*48)),
-                    0xff
-                };
+                // raw position in noise-space
+                Vec2 t0 { float(x)*nw/iw, float(y)*nh/ih };
+                // sample indices
+                Vec2i n00 = Vec2i{ (int)t0.x, (int)t0.y };
+                Vec2 t = t0 - n00.to<float>();
+                Sample s00 = noise[n00.y][n00.x];
+                // note: in general anything using sample x/y is half-baked
+                // it mostly works, but there are artifacts; deal w/ it later
+                if (s00.x > t.x) {
+                    n00.x = (n00.x-1 + nw) % nw;
+                    s00 = noise[n00.y][n00.x];
+                    t = t0 - n00.to<float>();
+                }
+                if (s00.y > t.y) {
+                    n00.y = (n00.y-1 + nh) % nh;
+                    s00 = noise[n00.y][n00.x];
+                    t = t0 - n00.to<float>();
+                }
+                Vec2i n01 = (n00 + Vec2i{0, 1}) % Vec2i{nw, nh};
+                Vec2i n10 = (n00 + Vec2i{1, 0}) % Vec2i{nw, nh};
+                Vec2i n11 = (n00 + Vec2i{1, 1}) % Vec2i{nw, nh};
+                Sample s01 = noise[n01.y][n01.x];
+                Sample s10 = noise[n10.y][n10.x];
+                Sample s11 = noise[n11.y][n11.x];
+                float a = lerp_between(t0.x, n00.x+s00.x, n10.x+s10.x, s00.v, s10.v);
+                float b = lerp_between(t0.x, n01.x+s01.x, n11.x+s11.x, s01.v, s11.v);
+                Uint8 c = 0xff*lerp_between(t0.y, n00.y+s00.y, n01.y+s01.y, a, b);
+                // Vec2i xx = (float(iw/nw)*(Vec2f{n00.x+s00.x, n00.y+s00.y})).to<int>();
+                // Uint8 c = ((xx.x == x) && (xx.y == y)) ? 0xff : 0x00;
+                *pixel = { c, c, c, 0xff };
+                // *pixel = {Uint8(0xff*s00.x), Uint8(0xff*s00.y), 0, 0xff};
             }
         }
         _texture = SDL_CreateTextureFromSurface(sdl, surface);
@@ -189,6 +250,10 @@ struct Game {
             // detects when the dll was reloaded
             // ... we may want to explicitly model this as a function but, details
             justLoaded = false;
+            createTexture();
+        }
+
+        if (input->didPress("1")) {
             createTexture();
         }
 

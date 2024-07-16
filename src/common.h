@@ -86,3 +86,13 @@ T sign(T val) {
         return 0;
     }
 }
+
+/// @brief Linear interpolation between two values
+/// @param t how far along we're interpolating, between [0, 1] (will clamp if oob)
+/// @param lo lower bound
+/// @param hi upper bound
+/// @return a value between [lo, hi]
+template <typename T>
+T lerp(float t, T lo, T hi) {
+    return clamp(t, 0.0f, 1.0f)*(hi - lo) + lo;
+}

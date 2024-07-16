@@ -8,7 +8,13 @@ template <typename T>
 struct Vec2x {
     T x, y;
     Vec2x() : x(0), y(0) {}
+    Vec2x(T s) : x(s), y(s) {}
     Vec2x(T _x, T _y) : x(_x), y(_y) {}
+
+    template <typename U>
+    Vec2x<U> to() const {
+        return Vec2x<U>{U(x), U(y)};
+    }
 
     /// @brief Returns the magnitude of the vector
     T len() const {
@@ -58,6 +64,7 @@ struct Vec2x {
     BIN_OP(-)
     BIN_OP(*)
     BIN_OP(/)
+    BIN_OP(%)
 #undef BIN_OP
 };
 #define BIN_OP(op) \
@@ -69,6 +76,7 @@ BIN_OP(+)
 BIN_OP(-)
 BIN_OP(*)
 BIN_OP(/)
+BIN_OP(%)
 #undef BIN_OP
 
 
