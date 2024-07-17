@@ -37,11 +37,21 @@ struct Vec2x {
     }
 
     /// @brief dot product: a.x*b.x + a.y*b.y
+    /// @return a positive scalar value 
     T dot(Vec2x const& v) const {
         return x*v.x + y*v.y;
     }
     static inline T dot(Vec2x const& a, Vec2x const& b) {
         return a.dot(b);
+    }
+
+    /// @brief 2D cross product
+    /// @return a scalar value where sign indicates direction
+    T cross(Vec2x const& v) const {
+        return x*v.y - y*v.x;
+    }
+    static inline T cross(Vec2x const& a, Vec2x const& b) {
+        return a.cross(b);
     }
 
 #ifdef BIN_OP

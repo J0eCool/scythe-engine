@@ -173,8 +173,8 @@ struct Game {
             SDL_DestroyTexture(_texture);
         }
         // noise width/height
-        int nw = 4;
-        int nh = 4;
+        int nw = 8;
+        int nh = 8;
         struct Sample {
             // value, x-offset, y-offset
             float v, x, y;
@@ -185,8 +185,8 @@ struct Game {
                 noise[y][x] = {
                     randFloat(0.0, 1.0),
                     // todo: reenable position scattering
-                    randFloat(0.0, 0.0),
-                    randFloat(0.0, 0.0),
+                    randFloat(0.0, 1.0),
+                    randFloat(0.0, 1.0),
                 };
             }
         }
@@ -204,40 +204,68 @@ struct Game {
         };
         for (int y = 0; y < ih; ++y) {
             for (int x = 0; x < iw; ++x) {
+                // raw position in noise-space
+                Vec2 p { float(x)*nw/iw, float(y)*nh/ih };
+
+                // sample the current noise cell
+                Vec2i a_i = Vec2i{ (int)p.x, (int)p.y };
+                Sample a_s = noise[a_i.y][a_i.x];
+                // position of the sample
+                Vec2 a = a_i.to<float>() + Vec2 { a_s.x, a_s.y };
+
+                // next we need to determine which quadrant of the cell we're in
+
+                Vec2i n_bounds = Vec2i { nw, nh };
+                Vec2i b_i = (a_i + Vec2i{1, 0});
+                Vec2i c_i = (a_i + Vec2i{0, 1});
+                Vec2i d_i = (a_i - Vec2i{1, 0});
+                Vec2i e_i = (a_i - Vec2i{0, 1});
+                Sample b_s = noise[(b_i.y+nh) % nh][b_i.x % nw];
+                Sample c_s = noise[(c_i.y+nh) % nh][c_i.x % nw];
+                Sample d_s = noise[(d_i.y+nh) % nh][d_i.x % nw];
+                Sample e_s = noise[(e_i.y+nh) % nh][e_i.x % nw];
+                Vec2 b = b_i.to<float>() + Vec2 { b_s.x, b_s.y };
+                Vec2 c = c_i.to<float>() + Vec2 { c_s.x, c_s.y };
+                Vec2 d = d_i.to<float>() + Vec2 { d_s.x, d_s.y };
+                Vec2 e = e_i.to<float>() + Vec2 { e_s.x, e_s.y };
+
+                const int nColors = 7;
+                Color colors[nColors] = {
+                    { 0xff, 0x00, 0x00, 0xff },
+                    { 0xff, 0xff, 0x00, 0xff },
+                    { 0x00, 0xff, 0x00, 0xff },
+                    { 0x00, 0xff, 0xff, 0xff },
+                    { 0x00, 0x00, 0xff, 0xff },
+                    { 0xff, 0x00, 0xff, 0xff },
+                    { 0xff, 0xff, 0xff, 0xff },
+                };
+
+                // determine which quadrant we're in using cross prodcuts to compare angles
+                auto pa = p-a;
+                auto ba = b-a;
+                auto ca = c-a;
+                auto da = d-a;
+                auto ea = e-a;
+                int i = a_i.x + (nw+1)*a_i.y;
+                if (sign(pa.cross(ba)) == sign(ca.cross(pa)) && pa.cross(ba) < 0) {
+                    // bottom-right;
+                    i += nw+2;
+                } else if (sign(pa.cross(ca)) == sign(da.cross(pa)) && pa.cross(ca) < 0) {
+                    // bottom-left
+                    i += nw+1;
+                } else if (sign(pa.cross(da)) == sign(ea.cross(pa)) && pa.cross(da) < 0) {
+                    // top-left
+                    // i += 0; (nop)
+                } else {
+                    // top-right
+                    i += 1;
+                }
+
+                // finally, set the pixel color
                 Color *pixel = (Color*)((Uint8*)surface->pixels
                     + y*surface->pitch
                     + x*surface->format->BytesPerPixel);
-                // raw position in noise-space
-                Vec2 t0 { float(x)*nw/iw, float(y)*nh/ih };
-                // sample indices
-                Vec2i n00 = Vec2i{ (int)t0.x, (int)t0.y };
-                Vec2 t = t0 - n00.to<float>();
-                Sample s00 = noise[n00.y][n00.x];
-                // note: in general anything using sample x/y is half-baked
-                // it mostly works, but there are artifacts; deal w/ it later
-                if (s00.x > t.x) {
-                    n00.x = (n00.x-1 + nw) % nw;
-                    s00 = noise[n00.y][n00.x];
-                    t = t0 - n00.to<float>();
-                }
-                if (s00.y > t.y) {
-                    n00.y = (n00.y-1 + nh) % nh;
-                    s00 = noise[n00.y][n00.x];
-                    t = t0 - n00.to<float>();
-                }
-                Vec2i n01 = (n00 + Vec2i{0, 1}) % Vec2i{nw, nh};
-                Vec2i n10 = (n00 + Vec2i{1, 0}) % Vec2i{nw, nh};
-                Vec2i n11 = (n00 + Vec2i{1, 1}) % Vec2i{nw, nh};
-                Sample s01 = noise[n01.y][n01.x];
-                Sample s10 = noise[n10.y][n10.x];
-                Sample s11 = noise[n11.y][n11.x];
-                float a = lerp_between(t0.x, n00.x+s00.x, n10.x+s10.x, s00.v, s10.v);
-                float b = lerp_between(t0.x, n01.x+s01.x, n11.x+s11.x, s01.v, s11.v);
-                Uint8 c = 0xff*lerp_between(t0.y, n00.y+s00.y, n01.y+s01.y, a, b);
-                // Vec2i xx = (float(iw/nw)*(Vec2f{n00.x+s00.x, n00.y+s00.y})).to<int>();
-                // Uint8 c = ((xx.x == x) && (xx.y == y)) ? 0xff : 0x00;
-                *pixel = { c, c, c, 0xff };
-                // *pixel = {Uint8(0xff*s00.x), Uint8(0xff*s00.y), 0, 0xff};
+                *pixel = colors[i%nColors];
             }
         }
         _texture = SDL_CreateTextureFromSurface(sdl, surface);
