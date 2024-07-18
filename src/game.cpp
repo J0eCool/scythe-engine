@@ -11,8 +11,8 @@
 static const float PI = 3.1415926535;
 static const float TAU = 2*PI;
 
-const Vec2 screenSize { 800, 600 };
-const float groundHeight = 450;
+const Vec2 screenSize { 1920, 1080 };
+const float groundHeight = screenSize.y - 250;
 
 struct Entity {
     Vec2 _pos;
@@ -121,13 +121,11 @@ struct Game {
     Player _player;
     std::vector<Bullet> _bullets;
 
-    const int screenWidth = 800;
-    const int screenHeight = 600;
     Game(void* (*_calloc)(size_t, size_t)) {
         _window = SDL_CreateWindow(
             "This Game Is My Second Chance",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            screenWidth, screenHeight,
+            screenSize.x, screenSize.y,
             SDL_WINDOW_SHOWN);
         assert_SDL(_window, "window creation failed");
 
@@ -161,11 +159,6 @@ struct Game {
     Uint8 randByte() {
         return rand() % 0x100;
     }
-    // idk if this is useful anywhere else, or what to call it
-    float lerp_between(float x, float a, float b, float lo, float hi) {
-        float t = (x - a) / (b - a);
-        return lerp(t, lo, hi);
-    }
     void createTexture() {
         // srand(1337);
         auto sdl = _renderer->sdl();
@@ -173,8 +166,8 @@ struct Game {
             SDL_DestroyTexture(_texture);
         }
         // noise width/height
-        int nw = 8;
-        int nh = 8;
+        int nw = 7;
+        int nh = 7;
         struct Sample {
             // value, x-offset, y-offset
             float v, x, y;
@@ -192,8 +185,8 @@ struct Game {
         }
 
         // image width/height
-        int iw = 128;
-        int ih = 128;
+        int iw = 512;
+        int ih = 512;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, iw, ih, bpp,
@@ -220,10 +213,10 @@ struct Game {
                 Vec2i c_i = (a_i + Vec2i{0, 1});
                 Vec2i d_i = (a_i - Vec2i{1, 0});
                 Vec2i e_i = (a_i - Vec2i{0, 1});
-                Sample b_s = noise[(b_i.y+nh) % nh][b_i.x % nw];
-                Sample c_s = noise[(c_i.y+nh) % nh][c_i.x % nw];
-                Sample d_s = noise[(d_i.y+nh) % nh][d_i.x % nw];
-                Sample e_s = noise[(e_i.y+nh) % nh][e_i.x % nw];
+                Sample b_s = noise[(b_i.y+nh) % nh][(b_i.x+nw) % nw];
+                Sample c_s = noise[(c_i.y+nh) % nh][(c_i.x+nw) % nw];
+                Sample d_s = noise[(d_i.y+nh) % nh][(d_i.x+nw) % nw];
+                Sample e_s = noise[(e_i.y+nh) % nh][(e_i.x+nw) % nw];
                 Vec2 b = b_i.to<float>() + Vec2 { b_s.x, b_s.y };
                 Vec2 c = c_i.to<float>() + Vec2 { c_s.x, c_s.y };
                 Vec2 d = d_i.to<float>() + Vec2 { d_s.x, d_s.y };
@@ -308,10 +301,6 @@ struct Game {
         _player.update(dt);
     }
     void render() {
-        // texture funsies
-        SDL_Rect destRect { 400, 40, 3*128, 3*128 };
-        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
-
         _renderer->setColor(1.0, 1, 0, 1.0);
         float x = sin(t*TAU*0.3) * 200 + 400;
         float y = cos(t*TAU*0.23) * 200 + 400;
@@ -333,6 +322,16 @@ struct Game {
 
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
+
+        int texSize = 512;
+        SDL_Rect destRect { 800, 40, texSize, texSize };
+        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+        destRect.x += texSize;
+        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+        destRect.y += texSize;
+        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+        destRect.x -= texSize;
+        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
 
         _renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {
