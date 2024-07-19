@@ -164,29 +164,38 @@ struct Game {
     bool randBool(float p = 0.5) {
         return randFloat() < p;
     }
+
+    struct Color {
+        Uint8 r, g, b, a;
+
+        Color operator+(Color c) const {
+            return {r+c.r, g+c.g, b+c.b, a+c.a};
+        }
+        Color operator*(float s) const {
+            return {r*s, g*s, b*s, a*s};
+        }
+    };
+
     void createTexture() {
         // srand(1337);
         auto sdl = _renderer->sdl();
         if (_texture) {
             SDL_DestroyTexture(_texture);
         }
-        struct Color {
-            Uint8 r, g, b, a;
-        };
         // noise width/height
-        int nw = 4;
-        int nh = 4;
+        int nw = 5;
+        int nh = 5;
         struct Sample {
-            // value, x-offset, y-offset
+            float v;
             Color color;
-            // float v;
             Vec2f pos;
         };
         Sample noise[nh][nw]; // stored HxW for cache friendliness later (lol)
         for (int y = 0; y < nh; ++y) {
             for (int x = 0; x < nw; ++x) {
                 noise[y][x] = {
-                    {randByte(), randByte(), randByte(), 0xff},
+                    randFloat(0.0, 4.0),
+                    { randByte(), randByte(), randByte(), 0xff },
                     { randFloat(0.0, 1.0),
                       randFloat(0.0, 1.0) },
                 };
@@ -232,13 +241,30 @@ struct Game {
                     for (int i = max(0, bound_lo.x); i < min(iw, bound_hi.x); ++i) {
                         Vec2 p = iton * Vec2 { float(i), float(j) };
 
-                        /// TODO: draw pixel only if point is within quadrilateral
-                        // note quad can potential be concave
+                        // convert to UV coordinates inside the quad
+                        // if either U or V is out of [0, 1], then we're not inside the quad
+
+                        // that sounds hard... do barycentric coordinates work?
+                        // answer: no, but we learned something today
+                        Vec2 r = p;
+                        Vec2 r1 = ul_n;
+                        Vec2 r2 = ur_n;
+                        Vec2 r3 = bl_n;
+                        float d = (r1-r3).cross(r2-r3);
+                        float l1 = (r-r3).cross(r2-r3)/d;
+                        float l2 = (r-r3).cross(r3-r1)/d;
+                        float l3 = 1 - (r-r3).cross(r2-r1)/d;
+                        if (l1 < 0 || l2 < 0 || l3 < 0
+                            || l1 > 1 || l2 > 1 || l3 > 1) {
+                            continue;
+                        }
 
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        *pixel = ul.color;
+                        Uint8 cc = 0xff*(ul.v*l1 + ur.v*l2 + bl.v*l3);
+                        // *pixel = {cc,cc,cc,0xff};
+                        *pixel = ul.color*l1 + ur.color*l2 + bl.color*l3;
                     }
                 }
             }
