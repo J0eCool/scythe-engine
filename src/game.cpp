@@ -159,27 +159,36 @@ struct Game {
     Uint8 randByte() {
         return rand() % 0x100;
     }
+    /// @brief Generate a random `true` or `false` value
+    /// @param p probability of a `true` result
+    bool randBool(float p = 0.5) {
+        return randFloat() < p;
+    }
     void createTexture() {
         // srand(1337);
         auto sdl = _renderer->sdl();
         if (_texture) {
             SDL_DestroyTexture(_texture);
         }
+        struct Color {
+            Uint8 r, g, b, a;
+        };
         // noise width/height
-        int nw = 7;
-        int nh = 7;
+        int nw = 4;
+        int nh = 4;
         struct Sample {
             // value, x-offset, y-offset
-            float v, x, y;
+            Color color;
+            // float v;
+            Vec2f pos;
         };
         Sample noise[nh][nw]; // stored HxW for cache friendliness later (lol)
         for (int y = 0; y < nh; ++y) {
             for (int x = 0; x < nw; ++x) {
                 noise[y][x] = {
-                    randFloat(0.0, 1.0),
-                    // todo: reenable position scattering
-                    randFloat(0.0, 1.0),
-                    randFloat(0.0, 1.0),
+                    {randByte(), randByte(), randByte(), 0xff},
+                    { randFloat(0.0, 1.0),
+                      randFloat(0.0, 1.0) },
                 };
             }
         }
@@ -192,9 +201,6 @@ struct Game {
             0, iw, ih, bpp,
             // RGBA bitmasks; A mask is special
             0xff, 0xff << 8, 0xff << 16, 0);
-        struct Color {
-            Uint8 r, g, b, a;
-        };
         for (int y = 0; y < ih; ++y) {
             for (int x = 0; x < iw; ++x) {
                 // raw position in noise-space
@@ -203,11 +209,10 @@ struct Game {
                 // sample the current noise cell
                 Vec2i a_i = Vec2i{ (int)p.x, (int)p.y };
                 Sample a_s = noise[a_i.y][a_i.x];
-                // position of the sample
-                Vec2 a = a_i.to<float>() + Vec2 { a_s.x, a_s.y };
+                Vec2 a = a_i.to<float>() + a_s.pos;
 
                 // next we need to determine which quadrant of the cell we're in
-
+                // b,c,d,e are right,down,left,up cells, 
                 Vec2i n_bounds = Vec2i { nw, nh };
                 Vec2i b_i = (a_i + Vec2i{1, 0});
                 Vec2i c_i = (a_i + Vec2i{0, 1});
@@ -217,10 +222,10 @@ struct Game {
                 Sample c_s = noise[(c_i.y+nh) % nh][(c_i.x+nw) % nw];
                 Sample d_s = noise[(d_i.y+nh) % nh][(d_i.x+nw) % nw];
                 Sample e_s = noise[(e_i.y+nh) % nh][(e_i.x+nw) % nw];
-                Vec2 b = b_i.to<float>() + Vec2 { b_s.x, b_s.y };
-                Vec2 c = c_i.to<float>() + Vec2 { c_s.x, c_s.y };
-                Vec2 d = d_i.to<float>() + Vec2 { d_s.x, d_s.y };
-                Vec2 e = e_i.to<float>() + Vec2 { e_s.x, e_s.y };
+                Vec2 b = b_i.to<float>() + b_s.pos;
+                Vec2 c = c_i.to<float>() + c_s.pos;
+                Vec2 d = d_i.to<float>() + d_s.pos;
+                Vec2 e = e_i.to<float>() + e_s.pos;
 
                 const int nColors = 7;
                 Color colors[nColors] = {
@@ -234,31 +239,38 @@ struct Game {
                 };
 
                 // determine which quadrant we're in using cross prodcuts to compare angles
+                // this doesn't actually work for the case of concave quads, which is possible
+                // given that we're precomputing this in software, it's probably simpler and more accurate to just
+                // iterate over the noise cells *directly*, so we'll try that next
                 auto pa = p-a;
                 auto ba = b-a;
                 auto ca = c-a;
                 auto da = d-a;
                 auto ea = e-a;
                 int i = a_i.x + (nw+1)*a_i.y;
-                if (sign(pa.cross(ba)) == sign(ca.cross(pa)) && pa.cross(ba) < 0) {
+                Sample ul, ur, bl, br;
+                if (sign(ba.cross(pa)) == sign(pa.cross(ca)) && ba.cross(pa) >= 0) {
                     // bottom-right;
-                    i += nw+2;
+                    ul = noise[(a_i.y-0+nh) % nh][(a_i.x-0+nw) % nw];
+                    // ul = a;
                 } else if (sign(pa.cross(ca)) == sign(da.cross(pa)) && pa.cross(ca) < 0) {
                     // bottom-left
-                    i += nw+1;
+                    ul = noise[(a_i.y-0+nh) % nh][(a_i.x-1+nw) % nw];
+                    // ul = d;
                 } else if (sign(pa.cross(da)) == sign(ea.cross(pa)) && pa.cross(da) < 0) {
                     // top-left
-                    // i += 0; (nop)
+                    ul = noise[(a_i.y-1+nh) % nh][(a_i.x-1+nw) % nw];
                 } else {
                     // top-right
-                    i += 1;
+                    ul = noise[(a_i.y-1+nh) % nh][(a_i.x-0+nw) % nw];
+                    // ul = a;
                 }
 
                 // finally, set the pixel color
                 Color *pixel = (Color*)((Uint8*)surface->pixels
                     + y*surface->pitch
                     + x*surface->format->BytesPerPixel);
-                *pixel = colors[i%nColors];
+                *pixel = ul.color;
             }
         }
         _texture = SDL_CreateTextureFromSurface(sdl, surface);
