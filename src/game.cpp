@@ -201,76 +201,46 @@ struct Game {
             0, iw, ih, bpp,
             // RGBA bitmasks; A mask is special
             0xff, 0xff << 8, 0xff << 16, 0);
-        for (int y = 0; y < ih; ++y) {
-            for (int x = 0; x < iw; ++x) {
-                // raw position in noise-space
-                Vec2 p { float(x)*nw/iw, float(y)*nh/ih };
+        Vec2f ntoi { float(iw)/nw, float(ih)/nh };
+        Vec2f iton { float(nw)/iw, float(nh)/ih };
+        // for each noise cell
+        for (int y = -1; y < nh; ++y) {
+            for (int x = -1; x < nw; ++x) {
+                // sample each corner 
+                // _i for index
+                // _n for noise-coord position
+                Vec2f p_n = {float(x), float(y)};
+                Vec2i ul_i = Vec2i{x+0, y+0};
+                Vec2i ur_i = Vec2i{x+0, y+1};
+                Vec2i bl_i = Vec2i{x+1, y+0};
+                Vec2i br_i = Vec2i{x+1, y+1};
+                Sample ul = noise[(ul_i.y+nh) % nh][(ul_i.x+nw) % nw];
+                Sample ur = noise[(ur_i.y+nh) % nh][(ur_i.x+nw) % nw];
+                Sample bl = noise[(bl_i.y+nh) % nh][(bl_i.x+nw) % nw];
+                Sample br = noise[(br_i.y+nh) % nh][(br_i.x+nw) % nw];
+                Vec2f ul_n = ul_i.to<float>() + ul.pos;
+                Vec2f ur_n = ur_i.to<float>() + ur.pos;
+                Vec2f bl_n = bl_i.to<float>() + bl.pos;
+                Vec2f br_n = br_i.to<float>() + br.pos;
+                Vec2i bound_lo = floorv(ntoi*min(ul_n, min(ur_n, bl_n)));
+                Vec2i bound_hi =  ceilv(ntoi*max(br_n, max(ur_n, bl_n)));
+                assert(bound_lo.x <= bound_hi.x, "invalid noise bounds");
+                assert(bound_lo.y <= bound_hi.y, "invalid noise bounds");
 
-                // sample the current noise cell
-                Vec2i a_i = Vec2i{ (int)p.x, (int)p.y };
-                Sample a_s = noise[a_i.y][a_i.x];
-                Vec2 a = a_i.to<float>() + a_s.pos;
+                // iterate over the pixels in the AABB
+                for (int j = max(0, bound_lo.y); j < min(ih, bound_hi.y); ++j) {
+                    for (int i = max(0, bound_lo.x); i < min(iw, bound_hi.x); ++i) {
+                        Vec2 p = iton * Vec2 { float(i), float(j) };
 
-                // next we need to determine which quadrant of the cell we're in
-                // b,c,d,e are right,down,left,up cells, 
-                Vec2i n_bounds = Vec2i { nw, nh };
-                Vec2i b_i = (a_i + Vec2i{1, 0});
-                Vec2i c_i = (a_i + Vec2i{0, 1});
-                Vec2i d_i = (a_i - Vec2i{1, 0});
-                Vec2i e_i = (a_i - Vec2i{0, 1});
-                Sample b_s = noise[(b_i.y+nh) % nh][(b_i.x+nw) % nw];
-                Sample c_s = noise[(c_i.y+nh) % nh][(c_i.x+nw) % nw];
-                Sample d_s = noise[(d_i.y+nh) % nh][(d_i.x+nw) % nw];
-                Sample e_s = noise[(e_i.y+nh) % nh][(e_i.x+nw) % nw];
-                Vec2 b = b_i.to<float>() + b_s.pos;
-                Vec2 c = c_i.to<float>() + c_s.pos;
-                Vec2 d = d_i.to<float>() + d_s.pos;
-                Vec2 e = e_i.to<float>() + e_s.pos;
+                        /// TODO: draw pixel only if point is within quadrilateral
+                        // note quad can potential be concave
 
-                const int nColors = 7;
-                Color colors[nColors] = {
-                    { 0xff, 0x00, 0x00, 0xff },
-                    { 0xff, 0xff, 0x00, 0xff },
-                    { 0x00, 0xff, 0x00, 0xff },
-                    { 0x00, 0xff, 0xff, 0xff },
-                    { 0x00, 0x00, 0xff, 0xff },
-                    { 0xff, 0x00, 0xff, 0xff },
-                    { 0xff, 0xff, 0xff, 0xff },
-                };
-
-                // determine which quadrant we're in using cross prodcuts to compare angles
-                // this doesn't actually work for the case of concave quads, which is possible
-                // given that we're precomputing this in software, it's probably simpler and more accurate to just
-                // iterate over the noise cells *directly*, so we'll try that next
-                auto pa = p-a;
-                auto ba = b-a;
-                auto ca = c-a;
-                auto da = d-a;
-                auto ea = e-a;
-                int i = a_i.x + (nw+1)*a_i.y;
-                Sample ul, ur, bl, br;
-                if (sign(ba.cross(pa)) == sign(pa.cross(ca)) && ba.cross(pa) >= 0) {
-                    // bottom-right;
-                    ul = noise[(a_i.y-0+nh) % nh][(a_i.x-0+nw) % nw];
-                    // ul = a;
-                } else if (sign(pa.cross(ca)) == sign(da.cross(pa)) && pa.cross(ca) < 0) {
-                    // bottom-left
-                    ul = noise[(a_i.y-0+nh) % nh][(a_i.x-1+nw) % nw];
-                    // ul = d;
-                } else if (sign(pa.cross(da)) == sign(ea.cross(pa)) && pa.cross(da) < 0) {
-                    // top-left
-                    ul = noise[(a_i.y-1+nh) % nh][(a_i.x-1+nw) % nw];
-                } else {
-                    // top-right
-                    ul = noise[(a_i.y-1+nh) % nh][(a_i.x-0+nw) % nw];
-                    // ul = a;
+                        Color *pixel = (Color*)((Uint8*)surface->pixels
+                            + j*surface->pitch
+                            + i*surface->format->BytesPerPixel);
+                        *pixel = ul.color;
+                    }
                 }
-
-                // finally, set the pixel color
-                Color *pixel = (Color*)((Uint8*)surface->pixels
-                    + y*surface->pitch
-                    + x*surface->format->BytesPerPixel);
-                *pixel = ul.color;
             }
         }
         _texture = SDL_CreateTextureFromSurface(sdl, surface);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <math.h>
 
 /// @brief  Storage-generic 2D vectors with common math operations and operators
@@ -94,3 +96,26 @@ using Vec2i = Vec2x<int>;
 using Vec2f = Vec2x<float>;
 
 using Vec2 = Vec2f;
+
+template <typename T>
+Vec2x<T> min(Vec2x<T> a, Vec2x<T> b) {
+    return {
+        min(a.x, b.x),
+        min(a.y, b.y)
+    };
+}
+
+template <typename T>
+Vec2x<T> max(Vec2x<T> a, Vec2x<T> b) {
+    return {
+        max(a.x, b.x),
+        max(a.y, b.y)
+    };
+}
+
+Vec2i floorv(Vec2f v) {
+    return { (int)floor(v.x), (int)floor(v.y) };
+}
+Vec2i ceilv(Vec2f v) {
+    return { (int)ceil(v.x), (int)ceil(v.y) };
+}
