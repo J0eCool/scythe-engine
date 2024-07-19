@@ -169,10 +169,10 @@ struct Game {
         Uint8 r, g, b, a;
 
         Color operator+(Color c) const {
-            return {r+c.r, g+c.g, b+c.b, a+c.a};
+            return {Uint8(r+c.r), Uint8(g+c.g), Uint8(b+c.b), Uint8(a+c.a)};
         }
         Color operator*(float s) const {
-            return {r*s, g*s, b*s, a*s};
+            return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
         }
     };
 
@@ -194,7 +194,7 @@ struct Game {
         for (int y = 0; y < nh; ++y) {
             for (int x = 0; x < nw; ++x) {
                 noise[y][x] = {
-                    randFloat(0.0, 4.0),
+                    randFloat(0.0, 1.0),
                     { randByte(), randByte(), randByte(), 0xff },
                     { randFloat(0.0, 1.0),
                       randFloat(0.0, 1.0) },
@@ -223,16 +223,16 @@ struct Game {
                 Vec2i ur_i = Vec2i{x+0, y+1};
                 Vec2i bl_i = Vec2i{x+1, y+0};
                 Vec2i br_i = Vec2i{x+1, y+1};
-                Sample ul = noise[(ul_i.y+nh) % nh][(ul_i.x+nw) % nw];
-                Sample ur = noise[(ur_i.y+nh) % nh][(ur_i.x+nw) % nw];
-                Sample bl = noise[(bl_i.y+nh) % nh][(bl_i.x+nw) % nw];
-                Sample br = noise[(br_i.y+nh) % nh][(br_i.x+nw) % nw];
-                Vec2f ul_n = ul_i.to<float>() + ul.pos;
-                Vec2f ur_n = ur_i.to<float>() + ur.pos;
-                Vec2f bl_n = bl_i.to<float>() + bl.pos;
-                Vec2f br_n = br_i.to<float>() + br.pos;
-                Vec2i bound_lo = floorv(ntoi*min(ul_n, min(ur_n, bl_n)));
-                Vec2i bound_hi =  ceilv(ntoi*max(br_n, max(ur_n, bl_n)));
+                Sample ul_s = noise[(ul_i.y+nh) % nh][(ul_i.x+nw) % nw];
+                Sample ur_s = noise[(ur_i.y+nh) % nh][(ur_i.x+nw) % nw];
+                Sample bl_s = noise[(bl_i.y+nh) % nh][(bl_i.x+nw) % nw];
+                Sample br_s = noise[(br_i.y+nh) % nh][(br_i.x+nw) % nw];
+                Vec2f ul = ul_i.to<float>() + ul_s.pos;
+                Vec2f ur = ur_i.to<float>() + ur_s.pos;
+                Vec2f bl = bl_i.to<float>() + bl_s.pos;
+                Vec2f br = br_i.to<float>() + br_s.pos;
+                Vec2i bound_lo = floorv(ntoi*min(ul, min(ur, bl)));
+                Vec2i bound_hi =  ceilv(ntoi*max(br, max(ur, bl)));
                 assert(bound_lo.x <= bound_hi.x, "invalid noise bounds");
                 assert(bound_lo.y <= bound_hi.y, "invalid noise bounds");
 
@@ -244,16 +244,29 @@ struct Game {
                         // convert to UV coordinates inside the quad
                         // if either U or V is out of [0, 1], then we're not inside the quad
 
-                        // that sounds hard... do barycentric coordinates work?
-                        // answer: no, but we learned something today
-                        Vec2 r = p;
-                        Vec2 r1 = ul_n;
-                        Vec2 r2 = ur_n;
-                        Vec2 r3 = bl_n;
-                        float d = (r1-r3).cross(r2-r3);
-                        float l1 = (r-r3).cross(r2-r3)/d;
-                        float l2 = (r-r3).cross(r3-r1)/d;
-                        float l3 = 1 - (r-r3).cross(r2-r1)/d;
+                        float d = (p - ul).len2();
+                        Color c = ul_s.color;
+                        if (d > (p - ur).len2()) {
+                            d = (p - ur).len2();
+                            c = ur_s.color;
+                        }
+                        if (d > (p - bl).len2()) {
+                            d = (p - bl).len2();
+                            c = bl_s.color;
+                        }
+                        if (d > (p - br).len2()) {
+                            d = (p - br).len2();
+                            c = br_s.color;
+                        }
+
+                        // barycentric triangle collision check
+                        Vec2 r1 = ul;
+                        Vec2 r2 = ur;
+                        Vec2 r3 = bl;
+                        float den = (r1-r3).cross(r2-r3);
+                        float l1 = (p-r3).cross(r2-r3)/den;
+                        float l2 = (p-r3).cross(r3-r1)/den;
+                        float l3 = 1 - (p-r3).cross(r2-r1)/den;
                         if (l1 < 0 || l2 < 0 || l3 < 0
                             || l1 > 1 || l2 > 1 || l3 > 1) {
                             continue;
@@ -262,9 +275,11 @@ struct Game {
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        Uint8 cc = 0xff*(ul.v*l1 + ur.v*l2 + bl.v*l3);
+                        *pixel = c;
+                        // Uint8 cc = 0xff*(ul.v*l1 + ur.v*l2 + bl.v*l3);
                         // *pixel = {cc,cc,cc,0xff};
-                        *pixel = ul.color*l1 + ur.color*l2 + bl.color*l3;
+                        // *pixel = {0xff*d2, 0, 0, 0xff};
+                        // *pixel = ul.color*l1 + ur.color*l2 + bl.color*l3;
                     }
                 }
             }
