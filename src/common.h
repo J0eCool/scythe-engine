@@ -94,5 +94,6 @@ T sign(T val) {
 /// @return a value between [lo, hi]
 template <typename T>
 T lerp(float t, T lo, T hi) {
-    return clamp(t, 0.0f, 1.0f)*(hi - lo) + lo;
+    t = clamp(t, 0.0f, 1.0f);
+    return (1-t)*lo + t*hi;
 }

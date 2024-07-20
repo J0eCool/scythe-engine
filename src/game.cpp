@@ -111,6 +111,20 @@ struct Player : public Entity {
     }
 };
 
+struct Color {
+    Uint8 r, g, b, a;
+
+    Color operator+(Color c) const {
+        return {Uint8(r+c.r), Uint8(g+c.g), Uint8(b+c.b), Uint8(a+c.a)};
+    }
+    Color operator*(float s) const {
+        return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
+    }
+};
+Color operator*(float s, Color c) {
+    return c*s;
+}
+
 struct Game {
     SDL_Window* _window;
     Renderer* _renderer;
@@ -165,17 +179,6 @@ struct Game {
         return randFloat() < p;
     }
 
-    struct Color {
-        Uint8 r, g, b, a;
-
-        Color operator+(Color c) const {
-            return {Uint8(r+c.r), Uint8(g+c.g), Uint8(b+c.b), Uint8(a+c.a)};
-        }
-        Color operator*(float s) const {
-            return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
-        }
-    };
-
     void createTexture() {
         // srand(1337);
         auto sdl = _renderer->sdl();
@@ -183,8 +186,8 @@ struct Game {
             SDL_DestroyTexture(_texture);
         }
         // noise width/height
-        int nw = 5;
-        int nh = 5;
+        int nw = 8;
+        int nh = 8;
         struct Sample {
             float v;
             Color color;
@@ -194,7 +197,7 @@ struct Game {
         for (int y = 0; y < nh; ++y) {
             for (int x = 0; x < nw; ++x) {
                 noise[y][x] = {
-                    randFloat(0.0, 1.0),
+                    randFloat(0.0, 2.0),
                     { randByte(), randByte(), randByte(), 0xff },
                     { randFloat(0.0, 1.0),
                       randFloat(0.0, 1.0) },
@@ -203,8 +206,8 @@ struct Game {
         }
 
         // image width/height
-        int iw = 512;
-        int ih = 512;
+        int iw = 32;
+        int ih = 32;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, iw, ih, bpp,
@@ -243,43 +246,65 @@ struct Game {
 
                         // convert to UV coordinates inside the quad
                         // if either U or V is out of [0, 1], then we're not inside the quad
+                        // https://iquilezles.org/articles/ibilinear/
 
-                        float d = (p - ul).len2();
-                        Color c = ul_s.color;
-                        if (d > (p - ur).len2()) {
-                            d = (p - ur).len2();
-                            c = ur_s.color;
-                        }
-                        if (d > (p - bl).len2()) {
-                            d = (p - bl).len2();
-                            c = bl_s.color;
-                        }
-                        if (d > (p - br).len2()) {
-                            d = (p - br).len2();
-                            c = br_s.color;
-                        }
-
-                        // barycentric triangle collision check
-                        Vec2 r1 = ul;
-                        Vec2 r2 = ur;
-                        Vec2 r3 = bl;
-                        float den = (r1-r3).cross(r2-r3);
-                        float l1 = (p-r3).cross(r2-r3)/den;
-                        float l2 = (p-r3).cross(r3-r1)/den;
-                        float l3 = 1 - (p-r3).cross(r2-r1)/den;
-                        if (l1 < 0 || l2 < 0 || l3 < 0
-                            || l1 > 1 || l2 > 1 || l3 > 1) {
-                            continue;
-                        }
-
+                        Vec2 e = ur-ul;
+                        Vec2 f = bl-ul;
+                        Vec2 g = ul-ur+br-bl;
+                        Vec2 h = p - ul;
+                        // float k2 = g.x*f.y - g.y*f.x;
+                        // float k1 = e.x*f.y - e.y*f.x + h.x*g.y - h.y*g.x;
+                        // float k0 = h.x*e.y - h.y*e.x;
+                        float k2 = g.cross(f);
+                        float k1 = e.cross(f) + h.cross(g);
+                        float k0 = h.cross(e);
+                        float disc = k1*k1 - 4*k0*k2;
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        *pixel = c;
-                        // Uint8 cc = 0xff*(ul.v*l1 + ur.v*l2 + bl.v*l3);
-                        // *pixel = {cc,cc,cc,0xff};
-                        // *pixel = {0xff*d2, 0, 0, 0xff};
-                        // *pixel = ul.color*l1 + ur.color*l2 + bl.color*l3;
+                        if (abs(k2) < 0.001) {
+                            // if perfectly parallel
+                            /// TODO: linear interpolation
+                            *pixel = {0xff, 0x00, 0xff, 0xff};
+                            continue;
+                        }
+                        if (disc < 0) {
+                            continue;
+                        }
+
+                        float v = (-k1 - sqrt(disc))/(2*k2);
+                        float u = (h.x - f.x*v)/(e.x + g.x*v);
+                        if (u < 0 || u > 1 || v < 0 || v > 1) {
+                            v = (-k1 + sqrt(disc))/(2*k2);
+                            u = (h.x - f.x*v)/(e.x + g.x*v);
+                        }
+                        if (u < 0 || u > 1 || v < 0 || v > 1) {
+                            // *pixel = {0xff, 0x00, 0x00, 0xff};
+                            continue;
+                        }
+
+                        bool doColor = false;
+
+                        if (doColor) {
+                            Color a = lerp(u, ul_s.color, ur_s.color);
+                            Color b = lerp(u, bl_s.color, br_s.color);
+                            Color c = lerp(v, a, b);
+                            *pixel = c;
+                        } else {
+                            float a = lerp(u, ul_s.v, ur_s.v);
+                            float b = lerp(u, bl_s.v, br_s.v);
+                            float c = lerp(v, a, b);
+                            int cc = 0xff*c;
+                            *pixel = {0, 0, 0, 0xff};
+                            if (cc >= 0x200) {
+                                pixel->g = 0xff-(cc%0x100);
+                            } else if (cc >= 0x100) {
+                                pixel->r = (cc%0x100);
+                            } else {
+                                pixel->b = 0xff-(cc%0x100);
+                            }
+                            // *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
+                        }
                     }
                 }
             }
@@ -346,15 +371,14 @@ struct Game {
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
 
-        int texSize = 512;
-        SDL_Rect destRect { 800, 40, texSize, texSize };
-        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
-        destRect.x += texSize;
-        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
-        destRect.y += texSize;
-        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
-        destRect.x -= texSize;
-        SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+        int texSize = 256;
+        int texRep = 4;
+        for (int i = 0; i < texRep; ++i) {
+            for (int j = 0; j < texRep; ++j) {
+                SDL_Rect destRect { 800 + texSize*i, 40 + texSize*j, texSize, texSize };
+                SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+            }
+        }
 
         _renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {
