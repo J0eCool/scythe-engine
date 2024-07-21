@@ -21,10 +21,12 @@ private:
 public:
     typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
     newGame_t newGame;
-    typedef void* (__cdecl *onLoad_t)(void*);
+    typedef void (__cdecl *freeGame_t)(void*, void (*_free)(void*));
+    freeGame_t freeGame;
+    typedef void (__cdecl *onLoad_t)(void*);
     onLoad_t onLoad;
-    typedef void (__cdecl *quitGame_t)(void*, void (*_free)(void*));
-    quitGame_t quitGame;
+    typedef bool (__cdecl *shouldQuit_t)(void*);
+    shouldQuit_t shouldQuit;
     typedef int (__cdecl *update_t)(void*, float, Input*);
     update_t update;
     typedef const void (__cdecl *renderScene_t)(void*);
@@ -64,10 +66,12 @@ void GameDylib::load() {
     assert(_gameLib, "_gameLib failed to load");
     newGame = (newGame_t)SDL_LoadFunction(_gameLib, "newGame");
     assert(newGame, "newGame didn't load");
+    freeGame = (freeGame_t)SDL_LoadFunction(_gameLib, "freeGame");
+    assert(freeGame, "freeGame didn't load");
     onLoad = (onLoad_t)SDL_LoadFunction(_gameLib, "onLoad");
     assert(onLoad, "onLoad didn't load");
-    quitGame = (quitGame_t)SDL_LoadFunction(_gameLib, "quitGame");
-    assert(quitGame, "quitGame didn't load");
+    shouldQuit = (shouldQuit_t)SDL_LoadFunction(_gameLib, "shouldQuit");
+    assert(shouldQuit, "shouldQuit didn't load");
     update = (update_t)SDL_LoadFunction(_gameLib, "update");
     assert(update, "update didn't load");
     renderScene = (renderScene_t)SDL_LoadFunction(_gameLib, "renderScene");

@@ -70,6 +70,8 @@ public:
                 _buttons[it->second].pressed = isPress;
                 break;
             }
+            case SDL_MOUSEMOTION:
+                _mousePos = Vec2i { event.motion.x, event.motion.y }.to<float>();
             }
         }
     }

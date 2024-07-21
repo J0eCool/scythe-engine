@@ -131,6 +131,7 @@ struct Game {
     int gameMode = 0;
     float t = 0.0;
     SDL_Texture *_texture = nullptr;
+    bool _quit = false;
 
     Player _player;
     std::vector<Bullet> _bullets;
@@ -313,14 +314,28 @@ struct Game {
         SDL_FreeSurface(surface);
     }
 
-    /// @brief called after loading the dll, and on each reload
+    /// @brief Called after loading the dll, and on each reload.
+    /// Useful for iterating configs at the moment
     void onLoad() {
         createTexture();
     }
 
+    bool shouldQuit() {
+        return _quit;
+    }
+
     void update(float dt, const Input* input) {
+        if (input->didPress("quit")) {
+            _quit = true;
+            return;
+        }
+
         if (input->didPress("1")) {
             createTexture();
+        }
+        if (input->didPress("2")) {
+            Vec2 mouse = input->getMousePos();
+            log("mouse pos: <%f, %f>", mouse.x, mouse.y);
         }
 
         if (input->didPress("shoot")) {
@@ -396,7 +411,7 @@ Game* newGame(void* (*_calloc)(size_t, size_t)) {
     return game;
 }
 __declspec(dllexport)
-void quitGame(Game* game, void (*_free)(void*)) {
+void freeGame(Game* game, void (*_free)(void*)) {
     game->~Game();
     _free(game);
 }
@@ -404,6 +419,11 @@ void quitGame(Game* game, void (*_free)(void*)) {
 __declspec(dllexport)
 void onLoad(Game* game) {
     game->onLoad();
+}
+
+__declspec(dllexport)
+bool shouldQuit(Game* game) {
+    return game->shouldQuit();
 }
 
 __declspec(dllexport)

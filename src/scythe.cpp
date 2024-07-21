@@ -47,12 +47,11 @@ int main(int argc, char** argv) {
 
     log("setup complete");
 
-    bool quit = false;
     void* game = dll.newGame(calloc);
     dll.onLoad(game);
     DWORD lastDateTime = 0;
     // Main game loop
-    while (!quit) {
+    while (!dll.shouldQuit(game)) {
         // check game.cpp for changes
         FILETIME modified;
         const char* filename = "../src/game.cpp";
@@ -81,10 +80,6 @@ int main(int argc, char** argv) {
         // Handle Input
         input.update();
 
-        if (input.didPress("quit")) {
-            quit = true;
-        }
-
         // Update logic
         float dt = 0.01;
         dll.update(game, dt, &input);
@@ -96,7 +91,7 @@ int main(int argc, char** argv) {
         SDL_Delay(10);
     }
 
-    dll.quitGame(game, free);
+    dll.freeGame(game, free);
 
     SDL_Quit();
 
