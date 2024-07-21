@@ -49,6 +49,7 @@ int main(int argc, char** argv) {
 
     bool quit = false;
     void* game = dll.newGame(calloc);
+    dll.onLoad(game);
     DWORD lastDateTime = 0;
     // Main game loop
     while (!quit) {
@@ -66,13 +67,15 @@ int main(int argc, char** argv) {
             lastDateTime = modified.dwLowDateTime;
         }
         if (modified.dwLowDateTime != lastDateTime) {
+            lastDateTime = modified.dwLowDateTime;
+
             log("rebuilding...");
             fflush(stdout);
             // `system` runs a command from where the exe is, so we cwd to root
             system("bash -c \"cd ..; ./build-game.sh\"");
 
             dll.reload();
-            lastDateTime = modified.dwLowDateTime;
+            dll.onLoad(game);
         }
 
         // Handle Input

@@ -21,6 +21,8 @@ private:
 public:
     typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
     newGame_t newGame;
+    typedef void* (__cdecl *onLoad_t)(void*);
+    onLoad_t onLoad;
     typedef void (__cdecl *quitGame_t)(void*, void (*_free)(void*));
     quitGame_t quitGame;
     typedef int (__cdecl *update_t)(void*, float, Input*);
@@ -59,15 +61,17 @@ void GameDylib::load() {
 #endif
 
     _gameLib = SDL_LoadObject(copyDllName);
-    check(_gameLib, "_gameLib failed to load");
+    assert(_gameLib, "_gameLib failed to load");
     newGame = (newGame_t)SDL_LoadFunction(_gameLib, "newGame");
-    check(newGame, "newGame didn't load");
+    assert(newGame, "newGame didn't load");
+    onLoad = (onLoad_t)SDL_LoadFunction(_gameLib, "onLoad");
+    assert(onLoad, "onLoad didn't load");
     quitGame = (quitGame_t)SDL_LoadFunction(_gameLib, "quitGame");
-    check(quitGame, "quitGame didn't load");
+    assert(quitGame, "quitGame didn't load");
     update = (update_t)SDL_LoadFunction(_gameLib, "update");
-    check(update, "update didn't load");
+    assert(update, "update didn't load");
     renderScene = (renderScene_t)SDL_LoadFunction(_gameLib, "renderScene");
-    check(renderScene, "renderScene didn't load");
+    assert(renderScene, "renderScene didn't load");
 }
 
 void GameDylib::unload() {

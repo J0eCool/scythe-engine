@@ -313,15 +313,12 @@ struct Game {
         SDL_FreeSurface(surface);
     }
 
-    void update(float dt, const Input* input) {
-        static bool justLoaded = true;
-        if (justLoaded) {
-            // detects when the dll was reloaded
-            // ... we may want to explicitly model this as a function but, details
-            justLoaded = false;
-            createTexture();
-        }
+    /// @brief called after loading the dll, and on each reload
+    void onLoad() {
+        createTexture();
+    }
 
+    void update(float dt, const Input* input) {
         if (input->didPress("1")) {
             createTexture();
         }
@@ -402,6 +399,11 @@ __declspec(dllexport)
 void quitGame(Game* game, void (*_free)(void*)) {
     game->~Game();
     _free(game);
+}
+
+__declspec(dllexport)
+void onLoad(Game* game) {
+    game->onLoad();
 }
 
 __declspec(dllexport)
