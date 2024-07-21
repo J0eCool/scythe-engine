@@ -17,14 +17,13 @@ class Input_SDL : public Input {
     std::map<std::string, ButtonState> _buttons;
     // keycode -> Action name
     std::map<SDL_Keycode, std::string> _keybinds;
+    // mouse button -> Action name
+    std::map<SDL_Keycode, std::string> _mousebinds;
 
     int _backspaces;
     std::string _appendText;
 
 public:
-    Input_SDL() {
-    }
-
     // call once per frame
     void update() {
         // clear just-pressed bit, so JustPressed -> Pressed and JustReleased -> Released
@@ -51,10 +50,11 @@ public:
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
-                auto sym = event.key.keysym.sym;
                 bool isPress = event.type == SDL_KEYDOWN;
+                auto sym = event.key.keysym.sym;
                 if (isPress) {
                     //  handle logic for typing; this kinda sucks ngl
+                    /// TODO: investigate SDL_TEXTEDITING events
                     bool isText = sym >= SDLK_a && sym <= SDLK_z
                         || sym == SDLK_SPACE;
                     if (isText) {
@@ -63,21 +63,37 @@ public:
                         _backspaces++;
                     }
                 }
-                auto it = _keybinds.find(event.key.keysym.sym);
-                if (it == _keybinds.end()) {
-                    continue;
+                auto it = _keybinds.find(sym);
+                if (it != _keybinds.end()) {
+                    _buttons[it->second].pressed = isPress;
                 }
-                _buttons[it->second].pressed = isPress;
                 break;
             }
             case SDL_MOUSEMOTION:
                 _mousePos = Vec2i { event.motion.x, event.motion.y }.to<float>();
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+            case SDL_MOUSEBUTTONUP: {
+                bool isPress = event.type == SDL_MOUSEBUTTONDOWN;
+                auto btn = event.button.button;
+                auto it = _mousebinds.find(btn);
+                if (it != _mousebinds.end()) {
+                    _buttons[it->second].pressed = isPress;
+                }
+                break;
+            }
             }
         }
     }
 
     void addKeybind(std::string name, SDL_Keycode key) {
         _keybinds[key] = name;
+        if (_buttons.find(name) == _buttons.end()) {
+            _buttons[name] = {false, false};
+        }
+    }
+    void addMouseBind(std::string name, int mouseButton) {
+        _mousebinds[mouseButton] = name;
         if (_buttons.find(name) == _buttons.end()) {
             _buttons[name] = {false, false};
         }

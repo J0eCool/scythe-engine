@@ -166,6 +166,35 @@ struct Game {
         // just leak it for now, should only be when exiting the program so nbd
     }
 
+    /// @brief Called after loading the dll, and on each reload.
+    /// Useful for iterating configs at the moment
+    void onLoad() {
+        _input.addKeybind("quit", SDLK_ESCAPE);
+        _input.addKeybind("reload", SDLK_r);
+        _input.addKeybind("logging", SDLK_l);
+
+        _input.addKeybind("left", SDLK_a);
+        _input.addKeybind("right", SDLK_d);
+        _input.addKeybind("up", SDLK_w);
+        _input.addKeybind("down", SDLK_s);
+        _input.addKeybind("jump", SDLK_k);
+        _input.addKeybind("shoot", SDLK_j);
+
+        _input.addKeybind("1", SDLK_1);
+        _input.addKeybind("2", SDLK_2);
+        _input.addKeybind("3", SDLK_3);
+        _input.addKeybind("4", SDLK_4);
+        _input.addKeybind("5", SDLK_5);
+
+        _input.addMouseBind("click", 1);
+
+        createTexture();
+    }
+
+    bool shouldQuit() {
+        return _quit;
+    }
+
     float randFloat() {
         return (float)rand() / RAND_MAX;
     }
@@ -315,33 +344,6 @@ struct Game {
         SDL_FreeSurface(surface);
     }
 
-    /// @brief Called after loading the dll, and on each reload.
-    /// Useful for iterating configs at the moment
-    void onLoad() {
-        _input.addKeybind("quit", SDLK_ESCAPE);
-        _input.addKeybind("reload", SDLK_r);
-        _input.addKeybind("logging", SDLK_l);
-
-        _input.addKeybind("left", SDLK_a);
-        _input.addKeybind("right", SDLK_d);
-        _input.addKeybind("up", SDLK_w);
-        _input.addKeybind("down", SDLK_s);
-        _input.addKeybind("jump", SDLK_k);
-        _input.addKeybind("shoot", SDLK_j);
-
-        _input.addKeybind("1", SDLK_1);
-        _input.addKeybind("2", SDLK_2);
-        _input.addKeybind("3", SDLK_3);
-        _input.addKeybind("4", SDLK_4);
-        _input.addKeybind("5", SDLK_5);
-
-        createTexture();
-    }
-
-    bool shouldQuit() {
-        return _quit;
-    }
-
     void update(float dt) {
         _input.update();
         if (_input.didPress("quit")) {
@@ -352,9 +354,11 @@ struct Game {
         if (_input.didPress("1")) {
             createTexture();
         }
-        if (_input.didPress("2")) {
+        if (_input.didPress("click")) {
             Vec2 mouse = _input.getMousePos();
-            log("mouse pos: <%f, %f>", mouse.x, mouse.y);
+            Vec2 dir { randFloat(-1,1), randFloat(-1,1) };
+            Bullet bullet {mouse, 1500.0f*dir, 1.5};
+            _bullets.push_back(bullet);
         }
 
         if (_input.didPress("shoot")) {
