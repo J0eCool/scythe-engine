@@ -5,6 +5,7 @@
 #include "input_sdl.h"
 
 #include <math.h>
+#include <windows.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -48,29 +49,37 @@ int main(int argc, char** argv) {
 
     bool quit = false;
     void* game = dll.newGame(calloc);
+    DWORD lastDateTime = 0;
     // Main game loop
     while (!quit) {
-        // Handle Input
-        input.update();
-
-        if (input.didPress("quit")) {
-            quit = true;
+        // check game.cpp for changes
+        FILETIME modified;
+        const char* filename = "../src/game.cpp";
+        HANDLE file = CreateFile(filename, 0, 0, nullptr,
+            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        assert(file != INVALID_HANDLE_VALUE, "failed to load file %s", filename);
+        assert(GetFileTime(file, nullptr, nullptr, &modified),
+            "couldn't get file time for %s", filename);
+        CloseHandle(file);
+        if (lastDateTime == 0) {
+            // don't rebuild on first launch
+            lastDateTime = modified.dwLowDateTime;
         }
-        if (input.didPress("reload")) {
+        if (modified.dwLowDateTime != lastDateTime) {
             log("rebuilding...");
             fflush(stdout);
             // `system` runs a command from where the exe is, so we cwd to root
             system("bash -c \"cd ..; ./build-game.sh\"");
 
-            log("reloading...");
             dll.reload();
+            lastDateTime = modified.dwLowDateTime;
         }
-        if (input.didPress("logging")) {
-            // two logging statements here, logging_enabled
-            // will only be true for one of them
-            log("logging: DISABLED");
-            logging_enabled = !logging_enabled;
-            log("logging: ENABLED");
+
+        // Handle Input
+        input.update();
+
+        if (input.didPress("quit")) {
+            quit = true;
         }
 
         // Update logic

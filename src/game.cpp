@@ -197,7 +197,7 @@ struct Game {
         for (int y = 0; y < nh; ++y) {
             for (int x = 0; x < nw; ++x) {
                 noise[y][x] = {
-                    randFloat(0.0, 2.0),
+                    randFloat(0.0, 1.0),
                     { randByte(), randByte(), randByte(), 0xff },
                     { randFloat(0.0, 1.0),
                       randFloat(0.0, 1.0) },
@@ -206,8 +206,8 @@ struct Game {
         }
 
         // image width/height
-        int iw = 32;
-        int ih = 32;
+        int iw = 128;
+        int ih = 128;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, iw, ih, bpp,
@@ -294,7 +294,7 @@ struct Game {
                             float a = lerp(u, ul_s.v, ur_s.v);
                             float b = lerp(u, bl_s.v, br_s.v);
                             float c = lerp(v, a, b);
-                            int cc = 0xff*c;
+                            int cc = 0xff*(1*c);
                             *pixel = {0, 0, 0, 0xff};
                             if (cc >= 0x200) {
                                 pixel->g = 0xff-(cc%0x100);
@@ -303,7 +303,7 @@ struct Game {
                             } else {
                                 pixel->b = 0xff-(cc%0x100);
                             }
-                            // *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
+                            *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
                         }
                     }
                 }
