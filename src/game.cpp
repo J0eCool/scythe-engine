@@ -1,5 +1,5 @@
 #include "common.h"
-#include "input.h"
+#include "input_sdl.h"
 #include "render_sdl.h"
 #include "vec.h"
 
@@ -128,6 +128,7 @@ Color operator*(float s, Color c) {
 struct Game {
     SDL_Window* _window;
     Renderer* _renderer;
+    Input_SDL _input;
     int gameMode = 0;
     float t = 0.0;
     SDL_Texture *_texture = nullptr;
@@ -317,6 +318,23 @@ struct Game {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
+        _input.addKeybind("quit", SDLK_ESCAPE);
+        _input.addKeybind("reload", SDLK_r);
+        _input.addKeybind("logging", SDLK_l);
+
+        _input.addKeybind("left", SDLK_a);
+        _input.addKeybind("right", SDLK_d);
+        _input.addKeybind("up", SDLK_w);
+        _input.addKeybind("down", SDLK_s);
+        _input.addKeybind("jump", SDLK_k);
+        _input.addKeybind("shoot", SDLK_j);
+
+        _input.addKeybind("1", SDLK_1);
+        _input.addKeybind("2", SDLK_2);
+        _input.addKeybind("3", SDLK_3);
+        _input.addKeybind("4", SDLK_4);
+        _input.addKeybind("5", SDLK_5);
+
         createTexture();
     }
 
@@ -324,21 +342,22 @@ struct Game {
         return _quit;
     }
 
-    void update(float dt, const Input* input) {
-        if (input->didPress("quit")) {
+    void update(float dt) {
+        _input.update();
+        if (_input.didPress("quit")) {
             _quit = true;
             return;
         }
 
-        if (input->didPress("1")) {
+        if (_input.didPress("1")) {
             createTexture();
         }
-        if (input->didPress("2")) {
-            Vec2 mouse = input->getMousePos();
+        if (_input.didPress("2")) {
+            Vec2 mouse = _input.getMousePos();
             log("mouse pos: <%f, %f>", mouse.x, mouse.y);
         }
 
-        if (input->didPress("shoot")) {
+        if (_input.didPress("shoot")) {
             Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
             Bullet bullet {_player._pos, vel, 1.5};
             _bullets.push_back(bullet);
@@ -357,7 +376,7 @@ struct Game {
             _bullets.pop_back();
         }
 
-        _player._input = input;
+        _player._input = &_input;
         _player.update(dt);
     }
     void render() {
@@ -427,9 +446,9 @@ bool shouldQuit(Game* game) {
 }
 
 __declspec(dllexport)
-void update(Game* game, float dt, const Input* input) {
+void update(Game* game, float dt) {
     game->t += dt;
-    game->update(dt, input);
+    game->update(dt);
 }
 
 __declspec(dllexport)

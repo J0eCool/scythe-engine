@@ -3,7 +3,6 @@
 #pragma once
 
 #include "common.h"
-#include "input.h"
 
 #include <SDL2/SDL.h>
 
@@ -27,7 +26,7 @@ public:
     onLoad_t onLoad;
     typedef bool (__cdecl *shouldQuit_t)(void*);
     shouldQuit_t shouldQuit;
-    typedef int (__cdecl *update_t)(void*, float, Input*);
+    typedef int (__cdecl *update_t)(void*, float);
     update_t update;
     typedef const void (__cdecl *renderScene_t)(void*);
     renderScene_t renderScene;

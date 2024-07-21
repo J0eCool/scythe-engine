@@ -2,7 +2,6 @@
 
 #include "common.h"
 #include "dylib.h"
-#include "input_sdl.h"
 
 #include <math.h>
 #include <windows.h>
@@ -25,25 +24,6 @@ int main(int argc, char** argv) {
     // Load game.dll
     const char* dllName = "game.dll";
     GameDylib dll(dllName);
-
-    Input_SDL input;
-
-    input.addKeybind("quit", SDLK_ESCAPE);
-    input.addKeybind("reload", SDLK_r);
-    input.addKeybind("logging", SDLK_l);
-
-    input.addKeybind("left", SDLK_a);
-    input.addKeybind("right", SDLK_d);
-    input.addKeybind("up", SDLK_w);
-    input.addKeybind("down", SDLK_s);
-    input.addKeybind("jump", SDLK_k);
-    input.addKeybind("shoot", SDLK_j);
-
-    input.addKeybind("1", SDLK_1);
-    input.addKeybind("2", SDLK_2);
-    input.addKeybind("3", SDLK_3);
-    input.addKeybind("4", SDLK_4);
-    input.addKeybind("5", SDLK_5);
 
     log("setup complete");
 
@@ -77,12 +57,9 @@ int main(int argc, char** argv) {
             dll.onLoad(game);
         }
 
-        // Handle Input
-        input.update();
-
         // Update logic
         float dt = 0.01;
-        dll.update(game, dt, &input);
+        dll.update(game, dt);
 
         dll.renderScene(game);
 
