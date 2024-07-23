@@ -26,10 +26,12 @@ class Input_SDL : public Input {
 public:
     // call once per frame
     void update() {
+        Tracer trace("Input::update");
         // clear just-pressed bit, so JustPressed -> Pressed and JustReleased -> Released
         for (auto& kv : _buttons) {
             kv.second.lastPressed = kv.second.pressed;
         }
+        trace("updated %d buttons", _buttons.size());
 
         _backspaces = 0;
         _appendText = "";
@@ -37,6 +39,7 @@ public:
         // poll for new events and update button mappings
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+            trace("event type=%d", event.type);
             switch (event.type) {
             case SDL_WINDOWEVENT: {
                 if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
@@ -87,14 +90,18 @@ public:
     }
 
     void addKeybind(std::string name, SDL_Keycode key) {
+        Tracer trace((std::string("Input::addKeybind-")+name).c_str());
         _keybinds[key] = name;
         if (_buttons.find(name) == _buttons.end()) {
+            trace("adding to _buttons");
             _buttons[name] = {false, false};
         }
     }
     void addMouseBind(std::string name, int mouseButton) {
+        Tracer trace((std::string("Input::addMouseBind-")+name).c_str());
         _mousebinds[mouseButton] = name;
         if (_buttons.find(name) == _buttons.end()) {
+            trace("adding to _buttons");
             _buttons[name] = {false, false};
         }
     }
@@ -104,6 +111,7 @@ public:
     }
 
     ButtonState getButtonState(std::string name) const override {
+        Tracer((std::string("Input::getButtonState-")+name).c_str());
         assert(_buttons.find(name) != _buttons.end(), "Unknown button name: \"%s\"\n", name.c_str());
         return _buttons.at(name);
     }

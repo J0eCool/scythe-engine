@@ -6,14 +6,19 @@
 
 #include <SDL2/SDL.h>
 
-// a check is a nonfatal assert
+/// @brief a check is a nonfatal assert
+/// @param cond the condition we hope is `true`
+/// @param msg a printf-style format string to display if the check fails
+/// @param ...args additional arguments to print
+/// @return passthrough return of `cond`
 template <typename... Ts>
-void check(bool cond, const char* msg, Ts... args) {
+bool check(bool cond, const char* msg, Ts... args) {
     if (!cond) {
         printf("Error: ");
         printf(msg, args...);
         puts("");
     }
+    return cond;
 }
 template <typename... Ts>
 void assert(bool cond, const char* msg, Ts... args) {
@@ -39,6 +44,29 @@ void log(const char* fmt, Ts... args) {
         puts("");
     }
 }
+
+bool debug_isTracing = true;
+// for debugging crashes
+class Tracer {
+    const char* _label;
+public:
+    Tracer(const char* label) : _label(label) {
+        (*this)("start");
+    }
+    ~Tracer() {
+        (*this)("end");
+    }
+
+    template <typename... Ts>
+    void operator()(const char* msg, Ts... args) {
+        if (debug_isTracing) {
+            printf("[trace] %s | ", _label);
+            printf(msg, args...);
+            puts("");
+            fflush(stdout);
+        }
+    }
+};
 
 /// Math stuff
 

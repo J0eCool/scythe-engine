@@ -9,18 +9,18 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-void buildGame() {
+/// @brief Builds the game.dll from source
+/// @return true iff the build succeeded
+bool buildGame() {
     fflush(stdout);
     const char* cmd = "g++ -o game.dll ../src/game.cpp"
         " -s -shared -lmingw32 -lSDL2 -lSDL2_image"
         " -fdiagnostics-color=always -g"
         ;
-    assert(system(cmd) == 0, "failed to build game.dll");
+    return system(cmd) == 0;
 }
 
 int main(int argc, char** argv) {
-    // let's focus on geting a thing up and running
-
     log("Loading SDL...");
     assert_SDL(SDL_Init(SDL_INIT_EVERYTHING) >= 0, "sdl_init failed");
     auto imgFlags = IMG_INIT_PNG;
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     }
 
     log("Building game.dll...");
-    buildGame();
+    assert(buildGame(), "failed to build game.dll on launch");
     const char* dllName = "game.dll";
     GameDylib dll(dllName);
 
@@ -58,10 +58,10 @@ int main(int argc, char** argv) {
             lastDateTime = modified.dwLowDateTime;
 
             log("rebuilding game.dll...");
-            buildGame();
-
-            dll.reload();
-            dll.onLoad(game);
+            if (check(buildGame(), "failed to build dll, continuing with old code")) {
+                dll.reload();
+                dll.onLoad(game);
+            }
         }
 
         // Update logic

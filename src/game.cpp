@@ -169,6 +169,8 @@ struct Game {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
+        debug_isTracing = true;
+
         _input.addKeybind("quit", SDLK_ESCAPE);
         _input.addKeybind("reload", SDLK_r);
         _input.addKeybind("logging", SDLK_l);
@@ -187,6 +189,7 @@ struct Game {
         _input.addKeybind("5", SDLK_5);
 
         _input.addMouseBind("click", 1);
+        _input.addMouseBind("rclick", 3);
 
         createTexture();
     }
@@ -211,7 +214,11 @@ struct Game {
     }
 
     void createTexture() {
+        Tracer("Game::createTexture");
+        // note that reloading the dll gives us a new rand seed each time
+        // which on reflection should be properly alarming
         // srand(1337);
+
         auto sdl = _renderer->sdl();
         if (_texture) {
             SDL_DestroyTexture(_texture);
@@ -237,8 +244,8 @@ struct Game {
         }
 
         // image width/height
-        int iw = 128;
-        int ih = 128;
+        int iw = 256;
+        int ih = 256;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, iw, ih, bpp,
@@ -314,7 +321,7 @@ struct Game {
                             continue;
                         }
 
-                        bool doColor = false;
+                        bool doColor = true;
 
                         if (doColor) {
                             Color a = lerp(u, ul_s.color, ur_s.color);
@@ -325,7 +332,7 @@ struct Game {
                             float a = lerp(u, ul_s.v, ur_s.v);
                             float b = lerp(u, bl_s.v, br_s.v);
                             float c = lerp(v, a, b);
-                            int cc = 0xff*(1*c);
+                            int cc = 0xff*(2*c);
                             *pixel = {0, 0, 0, 0xff};
                             if (cc >= 0x200) {
                                 pixel->g = 0xff-(cc%0x100);
@@ -334,7 +341,7 @@ struct Game {
                             } else {
                                 pixel->b = 0xff-(cc%0x100);
                             }
-                            *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
+                            // *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
                         }
                     }
                 }
@@ -345,13 +352,21 @@ struct Game {
     }
 
     void update(float dt) {
+        int stackval = 0;
+        Tracer trace("Game::update");
+        trace("stack addr: %x (val=%d)", &stackval, stackval);
+
         _input.update();
+
+        trace("input handling");
         if (_input.didPress("quit")) {
+            trace("quitting");
             _quit = true;
             return;
         }
 
-        if (_input.didPress("1")) {
+        trace("pardon?");
+        if (_input.didPress("1") || _input.didPress("rclick")) {
             createTexture();
         }
         if (_input.didPress("click")) {
@@ -366,6 +381,8 @@ struct Game {
             Bullet bullet {_player._pos, vel, 1.5};
             _bullets.push_back(bullet);
         }
+
+        trace("bullet removal");
         int numToRemove = 0;
         for (int i = _bullets.size() - 1; i >= 0; --i) {
             auto& bullet = _bullets[i];
@@ -378,12 +395,16 @@ struct Game {
         }
         for (int i = 0; i < numToRemove; ++i) {
             _bullets.pop_back();
+            // log("beips");
         }
 
         _player._input = &_input;
         _player.update(dt);
     }
+
     void render() {
+        Tracer trace("Game::render");
+
         _renderer->setColor(1.0, 1, 0, 1.0);
         float x = sin(t*TAU*0.3) * 200 + 400;
         float y = cos(t*TAU*0.23) * 200 + 400;
@@ -406,11 +427,12 @@ struct Game {
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
 
-        int texSize = 256;
+        int texSize = 1024;
         int texRep = 4;
+        int tileSize = texSize / texRep;
         for (int i = 0; i < texRep; ++i) {
             for (int j = 0; j < texRep; ++j) {
-                SDL_Rect destRect { 800 + texSize*i, 40 + texSize*j, texSize, texSize };
+                SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
                 SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
             }
         }
@@ -422,6 +444,10 @@ struct Game {
 
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
+
+        // only trace for one frame per reload to minimize spam
+        trace("end"); // we're about to disable tracing so, make it match lol
+        debug_isTracing = false;
     }
 };
 
