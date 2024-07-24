@@ -233,6 +233,7 @@ struct Game {
         }
     }
 
+    std::vector<int> _texIndices;
     void generateTextures() {
         Tracer("Game::generateTextures");
         // note that reloading the dll gives us a new rand seed each time
@@ -243,12 +244,13 @@ struct Game {
             SDL_DestroyTexture(tex);
         }
         _textures.clear();
+        _texIndices.clear();
         // noise width/height
-        int n = 8;
+        int n = 15;
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
 
-        int numTextures = 8;
+        int numTextures = 16;
         for (int i = 0; i < numTextures; ++i) {
             NoiseSample noise[n*n];
             generateNoise(noise, n);
@@ -263,13 +265,15 @@ struct Game {
                 noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
                 noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
-            int texSize = 64;
-            generateTexture(noise, n, texSize, 2 + randBool(0.3));
+            int texSize = 128;
+            SDL_Surface *surface = generateSurface(noise, n, texSize, 2);
+            auto sdl = _renderer->sdl();
+            _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
+            SDL_FreeSurface(surface);
         }
     }
 
-    void generateTexture(NoiseSample* noise, int n, int texSize, int xx) {
-        // image width/height
+    SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize, int xx) {
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, texSize, texSize, bpp,
@@ -342,11 +346,13 @@ struct Game {
                         }
 
                         // given 4 samples and a UV coordinate, interpolate
-                        bool doColor = false;
+                        int mode = 2;
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        if (doColor) {
+                        if (mode == 0) {
+                            *pixel = ul_s.color;
+                        } else if (mode == 1) {
                             Color a = lerp(uv.x, ul_s.color, ur_s.color);
                             Color b = lerp(uv.x, bl_s.color, br_s.color);
                             Color c = lerp(uv.y, a, b);
@@ -356,25 +362,30 @@ struct Game {
                             float b = lerp(uv.x, bl_s.v, br_s.v);
                             float c = lerp(uv.y, a, b);
                             int cc = 0xff*(xx*c);
-                            *pixel = {0, 0, 0, 0xff};
-                            if (cc >= 0x200) {
-                                pixel->g = 0xff-(cc%0x100);
-                            } else if (cc >= 0x100) {
-                                pixel->r = (cc%0x100);
+                            if (mode == 2) {
+                                *pixel = {0, 0, 0, 0xff};
+                                if (cc >= 0x200) {
+                                    pixel->g = 0xff-(cc%0x100);
+                                } else if (cc >= 0x100) {
+                                    pixel->r = (cc%0x100);
+                                } else {
+                                    pixel->b = 0xff-(cc%0x100);
+                                }
+                            } else if (mode == 3) {
+                                if ((cc/0x100) % 2 == 0) {
+                                    cc = (0xff-cc) % 0x100;
+                                }
+                                *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
                             } else {
-                                pixel->b = 0xff-(cc%0x100);
+                                check(false, "invalid mode");
+                                return surface;
                             }
-                            // *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
                         }
-                        // *pixel = ul_s.color;
                     }
                 }
             }
         }
-
-        auto sdl = _renderer->sdl();
-        _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
-        SDL_FreeSurface(surface);
+        return surface;
     }
 
     void update(float dt) {
@@ -456,8 +467,12 @@ struct Game {
         int tileSize = texSize / texRep;
         for (int i = 0; i < texRep; ++i) {
             for (int j = 0; j < texRep; ++j) {
+                int idxIdx = i*texRep + j;
+                while (idxIdx >= _texIndices.size()) {
+                    _texIndices.push_back(rand());
+                }
                 SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
-                SDL_RenderCopy(_renderer->sdl(), _textures[(i+j*j)%_textures.size()], nullptr, &destRect);
+                SDL_RenderCopy(_renderer->sdl(), _textures[_texIndices[idxIdx]%_textures.size()], nullptr, &destRect);
             }
         }
 
