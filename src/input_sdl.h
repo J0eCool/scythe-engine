@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.h"
-#include "input.h"
+#include "vec.h"
 
 #include <map>
 #include <string>
@@ -10,7 +10,12 @@
 
 using namespace std::literals;
 
-class Input_SDL : public Input {
+struct ButtonState {
+    bool lastPressed = false;
+    bool pressed = false;
+};
+
+class Input {
     Vec2 _mousePos;
 
     // name -> state mapping for Actions
@@ -106,20 +111,40 @@ public:
         }
     }
 
-    Vec2 getMousePos() const override {
+    Vec2 getMousePos() const {
         return _mousePos;
     }
 
-    ButtonState getButtonState(std::string name) const override {
+    ButtonState getButtonState(std::string name) const {
         Tracer((std::string("Input::getButtonState-")+name).c_str());
         assert(_buttons.find(name) != _buttons.end(), "Unknown button name: \"%s\"\n", name.c_str());
         return _buttons.at(name);
     }
 
-    void editText(std::string &text) const override {
+    void editText(std::string &text) const {
         for (int i = 0; i < min<int>(text.size(), _backspaces); ++i) {
             text.pop_back();
         }
         text += _appendText;
+    }
+
+    // returns true iff the Action was pressed this frame
+    bool didPress(std::string name) const {
+        auto state = getButtonState(name);
+        return state.pressed && !state.lastPressed;
+    }
+    // returns true when the Action is held down
+    bool isHeld(std::string name) const {
+        auto state = getButtonState(name);
+        return state.lastPressed || state.pressed;
+    }
+    // returns true iff the Action was released this frame
+    bool didRelease(std::string name) const {
+        auto state = getButtonState(name);
+        return !state.pressed && state.lastPressed;
+    }
+
+    float getAxis(std::string negName, std::string posName) const {
+        return isHeld(posName) - isHeld(negName);
     }
 };

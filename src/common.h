@@ -45,7 +45,7 @@ void log(const char* fmt, Ts... args) {
     }
 }
 
-bool debug_isTracing = true;
+bool debug_isTracing = false;
 // for debugging crashes
 class Tracer {
     const char* _label;

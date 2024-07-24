@@ -128,7 +128,7 @@ Color operator*(float s, Color c) {
 struct Game {
     SDL_Window* _window;
     Renderer* _renderer;
-    Input_SDL _input;
+    Input _input;
     int gameMode = 0;
     float t = 0.0;
     SDL_Texture *_texture = nullptr;
@@ -169,8 +169,6 @@ struct Game {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        debug_isTracing = true;
-
         _input.addKeybind("quit", SDLK_ESCAPE);
         _input.addKeybind("reload", SDLK_r);
         _input.addKeybind("logging", SDLK_l);
@@ -443,6 +441,8 @@ struct Game {
 
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
+
+        _renderer->drawText("h3h3h3h3heh3h3", 1677, 64);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol
