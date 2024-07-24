@@ -488,6 +488,12 @@ struct Game {
                 _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
             }
         }
+        int idx = int(t*5) % _textures.size();
+        SDL_Rect destRect { 760-tileSize, screenSize.y-tileSize-40, tileSize, tileSize };
+        SDL_RenderCopy(_renderer->sdl(), _textures[idx], nullptr, &destRect);
+        char buffer[16];
+        sprintf(buffer, "%d", idx);
+        _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
 
         _renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {
@@ -497,7 +503,7 @@ struct Game {
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
 
-        _renderer->drawText("h3h3h3h3heh3h3", 1337, 42);
+        _renderer->drawText("h3h3h3h3heh3h3", 1337, 2);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol
