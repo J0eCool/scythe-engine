@@ -54,6 +54,8 @@ public:
                 j = c - '0';
                 k = 2;
             } else {
+                // unsupported character
+                /// TODO: just put the characters on the ASCII grid you dolt
                 continue;
             }
             SDL_Rect srcRect {j*w, k*h, w, h};
