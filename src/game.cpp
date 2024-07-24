@@ -365,7 +365,6 @@ struct Game {
             return;
         }
 
-        trace("pardon?");
         if (_input.didPress("1") || _input.didPress("rclick")) {
             createTexture();
         }
@@ -420,7 +419,7 @@ struct Game {
             cos(3.3*t)*100 + 150,
             40, 40);
 
-        _renderer->drawText("You are big silly", 40, 40);
+        _renderer->drawText("HP: 1il/e1337", 40, 40);
         _renderer->drawText("Look at you", 226, 90);
         _renderer->drawText("maestro", 137, 244);
 
