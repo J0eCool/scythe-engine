@@ -224,8 +224,8 @@ struct Game {
             SDL_DestroyTexture(_texture);
         }
         // noise width/height
-        int nw = 8;
-        int nh = 8;
+        int nw = 4;
+        int nh = 4;
         struct Sample {
             float v;
             Color color;
@@ -244,8 +244,8 @@ struct Game {
         }
 
         // image width/height
-        int iw = 256;
-        int ih = 256;
+        int iw = 16;
+        int ih = 16;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, iw, ih, bpp,
@@ -297,41 +297,42 @@ struct Game {
                         float k1 = e.cross(f) + h.cross(g);
                         float k0 = h.cross(e);
                         float disc = k1*k1 - 4*k0*k2;
+                        Vec2 uv;
+                        if (abs(k2) < 0.001) {
+                            // if perfectly parallel
+                            uv = {
+                                (h.x*k1 + f.x*k0) / (e.x*k1 - g.x*k0),
+                                -k0/k1
+                            };
+                        } else {
+                            if (disc < 0) {
+                                continue;
+                            }
+
+                            uv.y = (-k1 - sqrt(disc))/(2*k2);
+                            uv.x = (h.x - f.x*uv.y)/(e.x + g.x*uv.y);
+                            if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1) {
+                                uv.y = (-k1 + sqrt(disc))/(2*k2);
+                                uv.x = (h.x - f.x*uv.y)/(e.x + g.x*uv.y);
+                            }
+                            if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1) {
+                                continue;
+                            }
+                        }
+
+                        bool doColor = false;
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        if (abs(k2) < 0.001) {
-                            // if perfectly parallel
-                            /// TODO: linear interpolation
-                            *pixel = {0xff, 0x00, 0xff, 0xff};
-                            continue;
-                        }
-                        if (disc < 0) {
-                            continue;
-                        }
-
-                        float v = (-k1 - sqrt(disc))/(2*k2);
-                        float u = (h.x - f.x*v)/(e.x + g.x*v);
-                        if (u < 0 || u > 1 || v < 0 || v > 1) {
-                            v = (-k1 + sqrt(disc))/(2*k2);
-                            u = (h.x - f.x*v)/(e.x + g.x*v);
-                        }
-                        if (u < 0 || u > 1 || v < 0 || v > 1) {
-                            // *pixel = {0xff, 0x00, 0x00, 0xff};
-                            continue;
-                        }
-
-                        bool doColor = true;
-
                         if (doColor) {
-                            Color a = lerp(u, ul_s.color, ur_s.color);
-                            Color b = lerp(u, bl_s.color, br_s.color);
-                            Color c = lerp(v, a, b);
+                            Color a = lerp(uv.x, ul_s.color, ur_s.color);
+                            Color b = lerp(uv.x, bl_s.color, br_s.color);
+                            Color c = lerp(uv.y, a, b);
                             *pixel = c;
                         } else {
-                            float a = lerp(u, ul_s.v, ur_s.v);
-                            float b = lerp(u, bl_s.v, br_s.v);
-                            float c = lerp(v, a, b);
+                            float a = lerp(uv.x, ul_s.v, ur_s.v);
+                            float b = lerp(uv.x, bl_s.v, br_s.v);
+                            float c = lerp(uv.y, a, b);
                             int cc = 0xff*(2*c);
                             *pixel = {0, 0, 0, 0xff};
                             if (cc >= 0x200) {
@@ -394,7 +395,6 @@ struct Game {
         }
         for (int i = 0; i < numToRemove; ++i) {
             _bullets.pop_back();
-            // log("beips");
         }
 
         _player._input = &_input;
@@ -427,7 +427,7 @@ struct Game {
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
 
         int texSize = 1024;
-        int texRep = 4;
+        int texRep = 8;
         int tileSize = texSize / texRep;
         for (int i = 0; i < texRep; ++i) {
             for (int j = 0; j < texRep; ++j) {
