@@ -131,7 +131,7 @@ struct Game {
     Input _input;
     int gameMode = 0;
     float t = 0.0;
-    SDL_Texture *_texture = nullptr;
+    std::vector<SDL_Texture*> _textures;
     bool _quit = false;
 
     Player _player;
@@ -158,7 +158,9 @@ struct Game {
     }
 
     ~Game() {
-        SDL_DestroyTexture(_texture);
+        for (auto tex : _textures) {
+            SDL_DestroyTexture(tex);
+        }
         SDL_DestroyRenderer(_renderer->sdl());
         SDL_DestroyWindow(_window);
 
@@ -189,7 +191,7 @@ struct Game {
         _input.addMouseBind("click", 1);
         _input.addMouseBind("rclick", 3);
 
-        createTexture();
+        generateTextures();
     }
 
     bool shouldQuit() {
@@ -211,49 +213,73 @@ struct Game {
         return randFloat() < p;
     }
 
-    void createTexture() {
-        Tracer("Game::createTexture");
-        // note that reloading the dll gives us a new rand seed each time
-        // which on reflection should be properly alarming
-        // srand(1337);
+    struct NoiseSample {
+        float v;
+        Color color;
+        Vec2f pos;
+    };
 
-        auto sdl = _renderer->sdl();
-        if (_texture) {
-            SDL_DestroyTexture(_texture);
-        }
-        // noise width/height
-        int nw = 4;
-        int nh = 4;
-        struct Sample {
-            float v;
-            Color color;
-            Vec2f pos;
-        };
-        Sample noise[nh][nw]; // stored HxW for cache friendliness later (lol)
-        for (int y = 0; y < nh; ++y) {
-            for (int x = 0; x < nw; ++x) {
-                noise[y][x] = {
+    void generateNoise(NoiseSample* noise, int n) {
+        for (int y = 0; y < n; ++y) {
+            for (int x = 0; x < n; ++x) {
+                noise[y*n + x] = {
                     randFloat(0.0, 1.0),
                     { randByte(), randByte(), randByte(), 0xff },
-                    { randFloat(0.0, 1.0),
-                      randFloat(0.0, 1.0) },
+                    { randFloat(0.3, 1.0),
+                      randFloat(0.3, 1.0),
+                    },
                 };
             }
         }
+    }
 
+    void generateTextures() {
+        Tracer("Game::generateTextures");
+        // note that reloading the dll gives us a new rand seed each time
+        // which on reflection should be properly alarming
+        // srand(21337);
+
+        for (auto tex : _textures) {
+            SDL_DestroyTexture(tex);
+        }
+        _textures.clear();
+        // noise width/height
+        int n = 8;
+        NoiseSample boundary[n*n];
+        generateNoise(boundary, n);
+
+        int numTextures = 8;
+        for (int i = 0; i < numTextures; ++i) {
+            NoiseSample noise[n*n];
+            generateNoise(noise, n);
+            // set the generated noise's boundary to be equal to the boundary noise
+            for (int j = 0; j < n; ++j) {
+                /* [x][0]   */ noise[j] = boundary[j];
+                /* [x][n-1] */ noise[j+n*(n-1)] = boundary[j+n];
+                /* [0][y]   */ noise[j*n] = boundary[j*n];
+                /* [n-1][y] */ noise[j*n+n-1] = boundary[j*n+n-1];
+                noise[j].color.g = noise[j].color.r; noise[j].color.b = noise[j].color.r;
+                noise[j+n*(n-1)].color.g = noise[j+n*(n-1)].color.r; noise[j+n*(n-1)].color.b = noise[j+n*(n-1)].color.r;
+                noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
+                noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
+            }
+            int texSize = 64;
+            generateTexture(noise, n, texSize, 2 + randBool(0.3));
+        }
+    }
+
+    void generateTexture(NoiseSample* noise, int n, int texSize, int xx) {
         // image width/height
-        int iw = 16;
-        int ih = 16;
         int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
-            0, iw, ih, bpp,
+            0, texSize, texSize, bpp,
             // RGBA bitmasks; A mask is special
             0xff, 0xff << 8, 0xff << 16, 0);
-        Vec2f ntoi { float(iw)/nw, float(ih)/nh };
-        Vec2f iton { float(nw)/iw, float(nh)/ih };
+        Vec2f ntoi { float(texSize)/n, float(texSize)/n };
+        Vec2f iton { float(n)/texSize, float(n)/texSize };
         // for each noise cell
-        for (int y = -1; y < nh; ++y) {
-            for (int x = -1; x < nw; ++x) {
+        for (int y = -1; y < n; ++y) {
+            for (int x = -1; x < n; ++x) {
                 // sample each corner 
                 // _i for index
                 // _n for noise-coord position
@@ -262,42 +288,39 @@ struct Game {
                 Vec2i ur_i = Vec2i{x+0, y+1};
                 Vec2i bl_i = Vec2i{x+1, y+0};
                 Vec2i br_i = Vec2i{x+1, y+1};
-                Sample ul_s = noise[(ul_i.y+nh) % nh][(ul_i.x+nw) % nw];
-                Sample ur_s = noise[(ur_i.y+nh) % nh][(ur_i.x+nw) % nw];
-                Sample bl_s = noise[(bl_i.y+nh) % nh][(bl_i.x+nw) % nw];
-                Sample br_s = noise[(br_i.y+nh) % nh][(br_i.x+nw) % nw];
+                NoiseSample ul_s = noise[((ul_i.y+n) % n)*n + ((ul_i.x+n) % n)];
+                NoiseSample ur_s = noise[((ur_i.y+n) % n)*n + ((ur_i.x+n) % n)];
+                NoiseSample bl_s = noise[((bl_i.y+n) % n)*n + ((bl_i.x+n) % n)];
+                NoiseSample br_s = noise[((br_i.y+n) % n)*n + ((br_i.x+n) % n)];
                 Vec2f ul = ul_i.to<float>() + ul_s.pos;
                 Vec2f ur = ur_i.to<float>() + ur_s.pos;
                 Vec2f bl = bl_i.to<float>() + bl_s.pos;
                 Vec2f br = br_i.to<float>() + br_s.pos;
                 Vec2i bound_lo = floorv(ntoi*min(ul, min(ur, bl)));
                 Vec2i bound_hi =  ceilv(ntoi*max(br, max(ur, bl)));
-                assert(bound_lo.x <= bound_hi.x, "invalid noise bounds");
-                assert(bound_lo.y <= bound_hi.y, "invalid noise bounds");
+                assert(bound_lo.x <= bound_hi.x && bound_lo.y <= bound_hi.y,
+                    "invalid noise bounds <%f, %f> hi=<%f, %f>",
+                    bound_lo.x, bound_lo.y, bound_hi.x, bound_hi.y);
 
                 // iterate over the pixels in the AABB
-                for (int j = max(0, bound_lo.y); j < min(ih, bound_hi.y); ++j) {
-                    for (int i = max(0, bound_lo.x); i < min(iw, bound_hi.x); ++i) {
+                for (int j = max(0, bound_lo.y); j < min(texSize, bound_hi.y); ++j) {
+                    for (int i = max(0, bound_lo.x); i < min(texSize, bound_hi.x); ++i) {
                         Vec2 p = iton * Vec2 { float(i), float(j) };
 
                         // convert to UV coordinates inside the quad
                         // if either U or V is out of [0, 1], then we're not inside the quad
                         // https://iquilezles.org/articles/ibilinear/
-
                         Vec2 e = ur-ul;
                         Vec2 f = bl-ul;
                         Vec2 g = ul-ur+br-bl;
                         Vec2 h = p - ul;
-                        // float k2 = g.x*f.y - g.y*f.x;
-                        // float k1 = e.x*f.y - e.y*f.x + h.x*g.y - h.y*g.x;
-                        // float k0 = h.x*e.y - h.y*e.x;
                         float k2 = g.cross(f);
                         float k1 = e.cross(f) + h.cross(g);
                         float k0 = h.cross(e);
                         float disc = k1*k1 - 4*k0*k2;
                         Vec2 uv;
                         if (abs(k2) < 0.001) {
-                            // if perfectly parallel
+                            // if perfectly parallel, linear
                             uv = {
                                 (h.x*k1 + f.x*k0) / (e.x*k1 - g.x*k0),
                                 -k0/k1
@@ -318,6 +341,7 @@ struct Game {
                             }
                         }
 
+                        // given 4 samples and a UV coordinate, interpolate
                         bool doColor = false;
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
@@ -331,7 +355,7 @@ struct Game {
                             float a = lerp(uv.x, ul_s.v, ur_s.v);
                             float b = lerp(uv.x, bl_s.v, br_s.v);
                             float c = lerp(uv.y, a, b);
-                            int cc = 0xff*(2*c);
+                            int cc = 0xff*(xx*c);
                             *pixel = {0, 0, 0, 0xff};
                             if (cc >= 0x200) {
                                 pixel->g = 0xff-(cc%0x100);
@@ -342,11 +366,14 @@ struct Game {
                             }
                             // *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
                         }
+                        // *pixel = ul_s.color;
                     }
                 }
             }
         }
-        _texture = SDL_CreateTextureFromSurface(sdl, surface);
+
+        auto sdl = _renderer->sdl();
+        _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
         SDL_FreeSurface(surface);
     }
 
@@ -365,7 +392,7 @@ struct Game {
         }
 
         if (_input.didPress("1") || _input.didPress("rclick")) {
-            createTexture();
+            generateTextures();
         }
         if (_input.didPress("click")) {
             Vec2 mouse = _input.getMousePos();
@@ -430,7 +457,7 @@ struct Game {
         for (int i = 0; i < texRep; ++i) {
             for (int j = 0; j < texRep; ++j) {
                 SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
-                SDL_RenderCopy(_renderer->sdl(), _texture, nullptr, &destRect);
+                SDL_RenderCopy(_renderer->sdl(), _textures[(i+j*j)%_textures.size()], nullptr, &destRect);
             }
         }
 
@@ -442,7 +469,7 @@ struct Game {
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
 
-        _renderer->drawText("h3h3h3h3heh3h3", 1677, 64);
+        _renderer->drawText("h3h3h3h3heh3h3", 1337, 42);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol
