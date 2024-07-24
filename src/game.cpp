@@ -4,6 +4,7 @@
 #include "vec.h"
 
 #include <math.h>
+#include <random>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -168,9 +169,15 @@ struct Game {
         // just leak it for now, should only be when exiting the program so nbd
     }
 
+    std::mt19937 _rand_engine;
+
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
+        std::random_device r;
+        std::seed_seq seed {r(), r(), r(), r(), r(), r(), r(), r()};
+        _rand_engine = std::mt19937(seed);
+
         _input.addKeybind("quit", SDLK_ESCAPE);
         _input.addKeybind("reload", SDLK_r);
         _input.addKeybind("logging", SDLK_l);
@@ -198,14 +205,17 @@ struct Game {
         return _quit;
     }
 
-    float randFloat() {
-        return (float)rand() / RAND_MAX;
+    int randInt(int limit = INT32_MAX) {
+        return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
+    }
+    float randFloat(float limit = 1.0) {
+        return std::uniform_real_distribution<float>(0, limit)(_rand_engine);
     }
     float randFloat(float lo, float hi) {
         return lerp(randFloat(), lo, hi);
     }
     Uint8 randByte() {
-        return rand() % 0x100;
+        return randInt(0x100);
     }
     /// @brief Generate a random `true` or `false` value
     /// @param p probability of a `true` result
@@ -246,7 +256,7 @@ struct Game {
         _textures.clear();
         _texIndices.clear();
         // noise width/height
-        int n = 15;
+        int n = 9;
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
 
@@ -265,7 +275,7 @@ struct Game {
                 noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
                 noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
-            int texSize = 128;
+            int texSize = 64;
             SDL_Surface *surface = generateSurface(noise, n, texSize, 2);
             auto sdl = _renderer->sdl();
             _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
@@ -469,10 +479,13 @@ struct Game {
             for (int j = 0; j < texRep; ++j) {
                 int idxIdx = i*texRep + j;
                 while (idxIdx >= _texIndices.size()) {
-                    _texIndices.push_back(rand());
+                    _texIndices.push_back(randInt(_textures.size()));
                 }
                 SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
-                SDL_RenderCopy(_renderer->sdl(), _textures[_texIndices[idxIdx]%_textures.size()], nullptr, &destRect);
+                SDL_RenderCopy(_renderer->sdl(), _textures[_texIndices[idxIdx]], nullptr, &destRect);
+                char buffer[16];
+                sprintf(buffer, "%d", _texIndices[idxIdx]);
+                _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
             }
         }
 
