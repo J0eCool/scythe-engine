@@ -42,22 +42,16 @@ public:
         int w = 12;
         int h = 28;
         while (char c = text[i++]) {
-            if (c >= 'a' && c <= 'z') {
-                // toupper
-                c -= 'a' - 'A';
-            }
-            int j, k;
-            if (c >= 'A' && c <= 'Z') {
-                j = (c - 'A') % 13;
-                k = (c - 'A') / 13;
-            } else if (c >= '0' && c <= '9') {
-                j = c - '0';
-                k = 2;
-            } else {
-                // unsupported character
-                /// TODO: just put the characters on the ASCII grid you dolt
+            if (c < 0) {
+                // unsupported character; no extended ASCII tyvm
                 continue;
             }
+            if (c >= 'a' && c <= 'z') {
+                // uppercase everything cause we have no lowercase yet
+                c -= 'a' - 'A';
+            }
+            int j = c % 16;
+            int k = c / 16;
             SDL_Rect srcRect {j*w, k*h, w, h};
             SDL_Rect dstRect {(int)x + (i-1)*w, (int)y, w, h};
             SDL_RenderCopy(_sdlRenderer, _alphabetTexture, &srcRect, &dstRect);

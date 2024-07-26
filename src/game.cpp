@@ -507,7 +507,7 @@ struct Game {
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
 
-        _renderer->drawText("h3h3h3h3heh3h3", 1337, 2);
+        _renderer->drawText("h3{h3}h3[h3]heh(3h)3he", 1337, 2);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol
