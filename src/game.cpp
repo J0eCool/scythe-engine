@@ -249,6 +249,7 @@ struct Game {
         // note that reloading the dll gives us a new rand seed each time
         // which on reflection should be properly alarming
         // srand(21337);
+        auto start = SDL_GetTicks();
 
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
@@ -256,7 +257,7 @@ struct Game {
         _textures.clear();
         _texIndices.clear();
         // noise width/height
-        int n = 9;
+        int n = 15;
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
 
@@ -275,12 +276,15 @@ struct Game {
                 noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
                 noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
-            int texSize = 64;
+            int texSize = 128;
             SDL_Surface *surface = generateSurface(noise, n, texSize, 2);
             auto sdl = _renderer->sdl();
             _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
             SDL_FreeSurface(surface);
         }
+
+        auto end = SDL_GetTicks();
+        log("Generated %d textures in %dms", numTextures, end-start);
     }
 
     SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize, int xx) {
@@ -483,13 +487,13 @@ struct Game {
                 }
                 SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
                 SDL_RenderCopy(_renderer->sdl(), _textures[_texIndices[idxIdx]], nullptr, &destRect);
-                char buffer[16];
-                sprintf(buffer, "%d", _texIndices[idxIdx]);
-                _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
+                // char buffer[16];
+                // sprintf(buffer, "%d", _texIndices[idxIdx]);
+                // _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
             }
         }
         int idx = int(t*5) % _textures.size();
-        SDL_Rect destRect { 760-tileSize, screenSize.y-tileSize-40, tileSize, tileSize };
+        SDL_Rect destRect { 760-tileSize, (int)screenSize.y-tileSize-40, tileSize, tileSize };
         SDL_RenderCopy(_renderer->sdl(), _textures[idx], nullptr, &destRect);
         char buffer[16];
         sprintf(buffer, "%d", idx);
