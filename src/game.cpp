@@ -167,6 +167,8 @@ struct Game {
 
         // _free(_renderer);
         // just leak it for now, should only be when exiting the program so nbd
+        // in future probably want to pass in an Allocator struct that has
+        // malloc+free, and pass that around zig-style
     }
 
     std::mt19937 _rand_engine;
@@ -478,26 +480,24 @@ struct Game {
 
         int texSize = 1024;
         int texRep = 8;
-        int tileSize = texSize / texRep;
+        float tileSize = texSize / texRep;
         for (int i = 0; i < texRep; ++i) {
             for (int j = 0; j < texRep; ++j) {
                 int idxIdx = i*texRep + j;
                 while (idxIdx >= _texIndices.size()) {
                     _texIndices.push_back(randInt(_textures.size()));
                 }
-                SDL_Rect destRect { 800 + tileSize*i, 40 + tileSize*j, tileSize, tileSize };
-                SDL_RenderCopy(_renderer->sdl(), _textures[_texIndices[idxIdx]], nullptr, &destRect);
-                // char buffer[16];
-                // sprintf(buffer, "%d", _texIndices[idxIdx]);
-                // _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
+                _renderer->drawImage(_textures[_texIndices[idxIdx]],
+                    800 + tileSize*i, 40 + tileSize*j,
+                    tileSize, tileSize);
             }
         }
         int idx = int(t*5) % _textures.size();
-        SDL_Rect destRect { 760-tileSize, (int)screenSize.y-tileSize-40, tileSize, tileSize };
-        SDL_RenderCopy(_renderer->sdl(), _textures[idx], nullptr, &destRect);
+        Vec2 texPos { 760-(float)tileSize, screenSize.y-(float)tileSize-40 };
+        _renderer->drawImage(_textures[idx], texPos, {tileSize, tileSize});
         char buffer[16];
         sprintf(buffer, "%d", idx);
-        _renderer->drawText(buffer, destRect.x + 10, destRect.y + 10);
+        _renderer->drawText(buffer, texPos.x + 10, texPos.y + 10);
 
         _renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {

@@ -22,6 +22,10 @@ public:
         SDL_DestroyTexture(_alphabetTexture);
     }
 
+    SDL_Renderer* sdl() const {
+        return _sdlRenderer;
+    }
+
     void setColor(float r, float g, float b, float a) {
         SDL_SetRenderDrawColor(_sdlRenderer, 255*r, 255*g, 255*b, 255*a);
     }
@@ -58,7 +62,11 @@ public:
         }
     }
 
-    SDL_Renderer* sdl() const {
-        return _sdlRenderer;
+    void drawImage(SDL_Texture *texture, float x, float y, float w, float h) {
+        SDL_Rect destRect { (int)x, (int)y, (int)w, (int)h };
+        SDL_RenderCopy(_sdlRenderer, texture, nullptr, &destRect);
+    }
+    void drawImage(SDL_Texture *texture, Vec2 pos, Vec2 size) {
+        drawImage(texture, pos.x, pos.y, size.x, size.y);
     }
 };
