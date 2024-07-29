@@ -135,8 +135,11 @@ struct Game {
     std::vector<SDL_Texture*> _textures;
     bool _quit = false;
 
+    std::mt19937 _rand_engine;
+
     Player _player;
     std::vector<Bullet> _bullets;
+    std::vector<int> _texIndices;
 
     Game(void* (*_calloc)(size_t, size_t)) {
         _window = SDL_CreateWindow(
@@ -171,11 +174,44 @@ struct Game {
         // malloc+free, and pass that around zig-style
     }
 
-    std::mt19937 _rand_engine;
+    // data per grid cell
+    struct NoiseSample {
+        float v; // scalar noise value
+        Color color; // RGB color data
+        Vec2f pos; // offset within the grid cell, expected to be in [0, 1)
+    };
+
+    struct {
+        // params afffecting generation
+        int noiseSize; // generate an NxN grid of samples
+        int numTextures; // generate N texture variations
+        // `mode` is how to display the noise data
+        //   0 - display each grid cell using the upper-left point's color
+        //   1 - interpolate between the color values of each
+        //   2 - map noise value onto a color gradient
+        //   3 - map noise value onto a grayscale gradient
+        int mode;
+        int noiseScale; // range of the scalar noise values
+        int texSize; // NxN pixel size of generated texture
+
+        // params affecting display
+        int renderSize; // NxN size of total display area on screen
+        int texRepetitions; // render an NxN grid of textures
+    } params;
 
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
+        // init params on load so they change on update
+        // todo: change these with UI and then persist them across reloads
+        params.noiseSize = 8;
+        params.numTextures = 8;
+        params.mode = 2;
+        params.texSize = 128;
+        params.noiseScale = 12;
+        params.renderSize = 1024;
+        params.texRepetitions = 4;
+
         std::random_device r;
         std::seed_seq seed {r(), r(), r(), r(), r(), r(), r(), r()};
         _rand_engine = std::mt19937(seed);
@@ -225,12 +261,6 @@ struct Game {
         return randFloat() < p;
     }
 
-    struct NoiseSample {
-        float v;
-        Color color;
-        Vec2f pos;
-    };
-
     void generateNoise(NoiseSample* noise, int n) {
         for (int y = 0; y < n; ++y) {
             for (int x = 0; x < n; ++x) {
@@ -245,7 +275,6 @@ struct Game {
         }
     }
 
-    std::vector<int> _texIndices;
     void generateTextures() {
         Tracer("Game::generateTextures");
         // note that reloading the dll gives us a new rand seed each time
@@ -259,12 +288,11 @@ struct Game {
         _textures.clear();
         _texIndices.clear();
         // noise width/height
-        int n = 15;
+        int n = params.noiseSize;
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
 
-        int numTextures = 16;
-        for (int i = 0; i < numTextures; ++i) {
+        for (int i = 0; i < params.numTextures; ++i) {
             NoiseSample noise[n*n];
             generateNoise(noise, n);
             // set the generated noise's boundary to be equal to the boundary noise
@@ -278,19 +306,18 @@ struct Game {
                 noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
                 noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
-            int texSize = 128;
-            SDL_Surface *surface = generateSurface(noise, n, texSize, 2);
+            SDL_Surface *surface = generateSurface(noise, n, params.texSize);
             auto sdl = _renderer->sdl();
             _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
             SDL_FreeSurface(surface);
         }
 
         auto end = SDL_GetTicks();
-        log("Generated %d textures in %dms", numTextures, end-start);
+        log("Generated %d textures in %dms", _textures.size(), end-start);
     }
 
-    SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize, int xx) {
-        int bpp = 32;
+    SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize) {
+        const int bpp = 32;
         SDL_Surface *surface = SDL_CreateRGBSurface(
             0, texSize, texSize, bpp,
             // RGBA bitmasks; A mask is special
@@ -362,13 +389,12 @@ struct Game {
                         }
 
                         // given 4 samples and a UV coordinate, interpolate
-                        int mode = 2;
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        if (mode == 0) {
+                        if (params.mode == 0) {
                             *pixel = ul_s.color;
-                        } else if (mode == 1) {
+                        } else if (params.mode == 1) {
                             Color a = lerp(uv.x, ul_s.color, ur_s.color);
                             Color b = lerp(uv.x, bl_s.color, br_s.color);
                             Color c = lerp(uv.y, a, b);
@@ -377,17 +403,22 @@ struct Game {
                             float a = lerp(uv.x, ul_s.v, ur_s.v);
                             float b = lerp(uv.x, bl_s.v, br_s.v);
                             float c = lerp(uv.y, a, b);
-                            int cc = 0xff*(xx*c);
-                            if (mode == 2) {
+                            int cc = 0xff*(params.noiseScale*c);
+                            if (params.mode == 2) {
                                 *pixel = {0, 0, 0, 0xff};
+                                bool even = (cc % 0x200) < 0x100;
+                                cc = cc % 0x300;
                                 if (cc >= 0x200) {
-                                    pixel->g = 0xff-(cc%0x100);
+                                    pixel->g = cc % 0x100;
+                                    if (even) pixel->g = 0xff - pixel->g;
                                 } else if (cc >= 0x100) {
-                                    pixel->r = (cc%0x100);
+                                    pixel->r = cc % 0x100;
+                                    if (even) pixel->r = 0xff - pixel->r;
                                 } else {
-                                    pixel->b = 0xff-(cc%0x100);
+                                    pixel->b = cc % 0x100;
+                                    if (even) pixel->b = 0xff - pixel->b;
                                 }
-                            } else if (mode == 3) {
+                            } else if (params.mode == 3) {
                                 if ((cc/0x100) % 2 == 0) {
                                     cc = (0xff-cc) % 0x100;
                                 }
@@ -478,12 +509,11 @@ struct Game {
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
 
-        int texSize = 1024;
-        int texRep = 8;
-        float tileSize = texSize / texRep;
-        for (int i = 0; i < texRep; ++i) {
-            for (int j = 0; j < texRep; ++j) {
-                int idxIdx = i*texRep + j;
+        int rep = params.texRepetitions;
+        float tileSize = params.renderSize / rep;
+        for (int i = 0; i < rep; ++i) {
+            for (int j = 0; j < rep; ++j) {
+                int idxIdx = i*rep + j;
                 while (idxIdx >= _texIndices.size()) {
                     _texIndices.push_back(randInt(_textures.size()));
                 }
