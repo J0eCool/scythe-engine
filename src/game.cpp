@@ -5,6 +5,7 @@
 
 #include <math.h>
 #include <random>
+#include <string.h>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -112,19 +113,94 @@ struct Player : public Entity {
     }
 };
 
-struct Color {
-    Uint8 r, g, b, a;
+/// @brief Determines whether a point is within an axis-aligned rectangle
+/// @param p point to test
+/// @param rPos upper-left corner of the rectangle
+/// @param rSize rectangle's size
+/// @return `true` iff the point is within the rect
+bool in_rect(Vec2 p, Vec2 rPos, Vec2 rSize) {
+    return p.x >= rPos.x && p.x <= rPos.x + rSize.x &&
+        p.y >= rPos.y && p.y <= rPos.y + rSize.y;
+}
 
-    Color operator+(Color c) const {
-        return {Uint8(r+c.r), Uint8(g+c.g), Uint8(b+c.b), Uint8(a+c.a)};
+/// @brief Determines whether a point is within an axis-aligned rectangle
+/// @tparam Rect any type with Vec2 fields `pos` and `size`
+/// @param p point to test
+/// @param rect rectangular object
+/// @return `true` iff the point is within the rect
+template <typename Rect>
+bool in_rect(Vec2 p, Rect rect) {
+    return in_rect(p, rect.pos, rect.size);
+}
+
+struct Button {
+    const char* label = "";
+    bool isHovered = false;
+    bool isPressed = false;
+    Vec2 pos { 0, 0 };
+    Vec2 size { 0, 0 };
+};
+
+class UI {
+    Input* _input;
+    Vec2 _padding { 10 }; // space between elements
+
+    Vec2 _origin; // starting point of cursor
+    Vec2 _cursor; // current position to place an element
+    std::vector<Button> _buttons;
+    // this is a hacky way to track state, and won't scale to other widgets
+    int _buttonIdx;
+public:
+    // UI() : _input(nullptr) {}
+    UI(Input* input) : _input(input) {}
+
+    void startUpdate(Vec2 pos) {
+        _cursor = _origin = pos;
+        _buttonIdx = 0;
     }
-    Color operator*(float s) const {
-        return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
+
+    void render(Renderer* renderer) {
+        for (auto &button : _buttons) {
+            if (button.isPressed && button.isHovered) {
+                renderer->setColor(0.25, 0.25, 0.25, 1.0);
+            } else if (button.isHovered) {
+                renderer->setColor(0.75, 0.75, 0.75, 1.0);
+            } else {
+                renderer->setColor(0.5, 0.5, 0.5, 1.0);
+            }
+            renderer->drawRect(button.pos, button.size);
+            renderer->drawText(button.label, button.pos + Vec2{10, 11});
+        }
+    }
+
+    /// @brief creates a button at the cursor
+    /// @param label text to display on the button
+    /// @return true when clicked on
+    bool button(const char* label) {
+        while (_buttonIdx >= _buttons.size()) {
+            _buttons.emplace_back();
+        }
+        Button &button = _buttons[_buttonIdx];
+        button.label = label;
+        button.pos = _cursor;
+        // hardcoded font size of 12x28 lmao
+        button.size = Vec2 { 20 + float(12*strlen(label)), 50 };
+        _cursor.x += button.size.x + _padding.x;
+
+        Vec2 mouse = _input->getMousePos();
+        button.isHovered = in_rect(mouse, button);
+        if (!button.isPressed) {
+            button.isPressed = button.isHovered && _input->didPress("click");
+            return false;
+        } else if (_input->didRelease("click")) {
+            button.isPressed = false;
+            // only count clicks if we release the click over this button
+            return button.isHovered;
+        } else {
+            return false;
+        }
     }
 };
-Color operator*(float s, Color c) {
-    return c*s;
-}
 
 struct Game {
     SDL_Window* _window;
@@ -134,6 +210,7 @@ struct Game {
     float t = 0.0;
     std::vector<SDL_Texture*> _textures;
     bool _quit = false;
+    UI _ui = UI(&_input);
 
     std::mt19937 _rand_engine;
 
@@ -205,13 +282,14 @@ struct Game {
         // init params on load so they change on update
         // todo: change these with UI and then persist them across reloads
         params.noiseSize = 8;
-        params.numTextures = 8;
+        params.numTextures = 16;
         params.mode = 2;
         params.texSize = 128;
-        params.noiseScale = 12;
+        params.noiseScale = 2;
         params.renderSize = 1024;
-        params.texRepetitions = 4;
+        params.texRepetitions = 8;
 
+        // this doesn't actually seed us :(
         std::random_device r;
         std::seed_seq seed {r(), r(), r(), r(), r(), r(), r(), r()};
         _rand_engine = std::mt19937(seed);
@@ -406,17 +484,18 @@ struct Game {
                             int cc = 0xff*(params.noiseScale*c);
                             if (params.mode == 2) {
                                 *pixel = {0, 0, 0, 0xff};
+                                // RGB cycles in 3s, value up/down cycles in 2s
                                 bool even = (cc % 0x200) < 0x100;
                                 cc = cc % 0x300;
                                 if (cc >= 0x200) {
+                                    if (even) cc = 0xff - (cc%0x100);
                                     pixel->g = cc % 0x100;
-                                    if (even) pixel->g = 0xff - pixel->g;
                                 } else if (cc >= 0x100) {
+                                    if (even) cc = 0xff - (cc%0x100);
                                     pixel->r = cc % 0x100;
-                                    if (even) pixel->r = 0xff - pixel->r;
                                 } else {
+                                    if (even) cc = 0xff - (cc%0x100);
                                     pixel->b = cc % 0x100;
-                                    if (even) pixel->b = 0xff - pixel->b;
                                 }
                             } else if (params.mode == 3) {
                                 if ((cc/0x100) % 2 == 0) {
@@ -465,6 +544,9 @@ struct Game {
             _bullets.push_back(bullet);
         }
 
+        trace("ui update");
+        updateUI();
+
         trace("bullet removal");
         int numToRemove = 0;
         for (int i = _bullets.size() - 1; i >= 0; --i) {
@@ -482,6 +564,13 @@ struct Game {
 
         _player._input = &_input;
         _player.update(dt);
+    }
+
+    void updateUI() {
+        _ui.startUpdate({ 30, 100 });
+        if (_ui.button("click me")) {
+            log("omg you clicked!");
+        }
     }
 
     void render() {
@@ -538,6 +627,8 @@ struct Game {
         _player.render(_renderer);
 
         _renderer->drawText("h3{h3}h3[h3]heh(3h)3he", 1337, 2);
+
+        _ui.render(_renderer);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol

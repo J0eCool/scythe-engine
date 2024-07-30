@@ -6,6 +6,20 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+struct Color {
+    Uint8 r, g, b, a;
+
+    Color operator+(Color c) const {
+        return {Uint8(r+c.r), Uint8(g+c.g), Uint8(b+c.b), Uint8(a+c.a)};
+    }
+    Color operator*(float s) const {
+        return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
+    }
+};
+Color operator*(float s, Color c) {
+    return c*s;
+}
+
 class Renderer {
     SDL_Renderer* _sdlRenderer;
     SDL_Texture *_alphabetTexture;
@@ -29,6 +43,9 @@ public:
     void setColor(float r, float g, float b, float a) {
         SDL_SetRenderDrawColor(_sdlRenderer, 255*r, 255*g, 255*b, 255*a);
     }
+    void setColor(Color c) {
+        SDL_SetRenderDrawColor(_sdlRenderer, c.r, c.g, c.b, c.a);
+    }
     void drawRect(float x, float y, float w, float h) {
         SDL_Rect rect {(int)x,(int)y,(int)w,(int)h};
         SDL_RenderFillRect(_sdlRenderer, &rect);
@@ -41,6 +58,9 @@ public:
         SDL_RenderDrawRect(_sdlRenderer, &rect);
     }
 
+    void drawText(const char* text, Vec2 pos) {
+        drawText(text, pos.x, pos.y);
+    }
     void drawText(const char* text, float x, float y) {
         int i = 0;
         int w = 12;
