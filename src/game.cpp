@@ -147,6 +147,7 @@ class UI {
 
     Vec2 _origin; // starting point of cursor
     Vec2 _cursor; // current position to place an element
+    float _lineHeight; // max height of elements on current line
     std::vector<Button> _buttons;
     // this is a hacky way to track state, and won't scale to other widgets
     int _buttonIdx;
@@ -157,6 +158,7 @@ public:
     void startUpdate(Vec2 pos) {
         _cursor = _origin = pos;
         _buttonIdx = 0;
+        _lineHeight = 0;
     }
 
     void render(Renderer* renderer) {
@@ -181,11 +183,14 @@ public:
             _buttons.emplace_back();
         }
         Button &button = _buttons[_buttonIdx];
+        _buttonIdx++;
         button.label = label;
         button.pos = _cursor;
         // hardcoded font size of 12x28 lmao
         button.size = Vec2 { 20 + float(12*strlen(label)), 50 };
+
         _cursor.x += button.size.x + _padding.x;
+        _lineHeight = max(_lineHeight, button.size.y);
 
         Vec2 mouse = _input->getMousePos();
         button.isHovered = in_rect(mouse, button);
@@ -199,6 +204,12 @@ public:
         } else {
             return false;
         }
+    }
+
+    void line() {
+        _cursor.y += _lineHeight + _padding.y;
+        _cursor.x = _origin.x;
+        _lineHeight = 0;
     }
 };
 
@@ -571,29 +582,17 @@ struct Game {
         if (_ui.button("click me")) {
             log("omg you clicked!");
         }
+        if (_ui.button("me too")) {
+            log("uwu");
+        }
+        _ui.line();
+        if (_ui.button("reroll")) {
+            generateTextures();
+        }
     }
 
     void render() {
         Tracer trace("Game::render");
-
-        _renderer->setColor(1.0, 1, 0, 1.0);
-        float x = sin(t*TAU*0.3) * 200 + 400;
-        float y = cos(t*TAU*0.23) * 200 + 400;
-        _renderer->drawRect(x, y, 60, 60);
-        _renderer->drawBox(x+5, y+5, 50, 50);
-
-        _renderer->setColor(0.0, 0.3, 1.0, 1.0);
-        _renderer->drawRect(75, 150, 75, 100);
-
-        _renderer->setColor(0.8, 0.1, 0.7, 1.0);
-        _renderer->drawBox(
-            sin(4.0*t)*300 + 350,
-            cos(3.3*t)*100 + 150,
-            40, 40);
-
-        _renderer->drawText("HP: 1il/e1337", 40, 40);
-        _renderer->drawText("Look at you", 226, 90);
-        _renderer->drawText("maestro", 137, 244);
 
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
@@ -625,8 +624,6 @@ struct Game {
 
         _renderer->setColor(0, 1, 1, 1);
         _player.render(_renderer);
-
-        _renderer->drawText("h3{h3}h3[h3]heh(3h)3he", 1337, 2);
 
         _ui.render(_renderer);
 
