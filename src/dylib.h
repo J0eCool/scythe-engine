@@ -10,18 +10,18 @@
 #include <windows.h>
 #endif
 
-typedef void* (*allocator_t)(size_t, size_t); // move this to a common.h or smth
-
 struct GameDylib {
 private:
     void* _gameLib;
     const char* _filename;
 
 public:
-    typedef void* (__cdecl *newGame_t)(allocator_t _calloc);
+    typedef void* (__cdecl *newGame_t)(Allocator*);
     newGame_t newGame;
-    typedef void (__cdecl *freeGame_t)(void*, void (*_free)(void*));
+    typedef void (__cdecl *freeGame_t)(void*, Allocator*);
     freeGame_t freeGame;
+    typedef void (__cdecl *onUnload_t)(void*);
+    onUnload_t onUnload;
     typedef void (__cdecl *onLoad_t)(void*);
     onLoad_t onLoad;
     typedef bool (__cdecl *shouldQuit_t)(void*);
@@ -73,6 +73,10 @@ void GameDylib::load() {
     freeGame = (freeGame_t)SDL_LoadFunction(_gameLib, "freeGame");
     trace("freeGame addr=%x", freeGame);
     assert(freeGame, "freeGame didn't load");
+
+    onUnload = (onUnload_t)SDL_LoadFunction(_gameLib, "onUnload");
+    trace("onUnload addr=%x", onUnload);
+    assert(onUnload, "onUnload didn't load");
 
     onLoad = (onLoad_t)SDL_LoadFunction(_gameLib, "onLoad");
     trace("onLoad addr=%x", onLoad);

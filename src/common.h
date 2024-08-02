@@ -6,6 +6,12 @@
 
 #include <SDL2/SDL.h>
 
+struct Allocator {
+    void* (*malloc)(size_t);
+    void* (*calloc)(size_t, size_t);
+    void (*free)(void*);
+};
+
 /// @brief a check is a nonfatal assert
 /// @param cond the condition we hope is `true`
 /// @param msg a printf-style format string to display if the check fails

@@ -36,7 +36,8 @@ int main(int argc, char** argv) {
 
     log("setup complete");
 
-    void* game = dll.newGame(calloc);
+    Allocator allocator { malloc, calloc, free };
+    void* game = dll.newGame(&allocator);
     dll.onLoad(game);
     DWORD lastDateTime = 0;
     // Main game loop
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
 
             log("rebuilding game.dll...");
             if (check(buildGame(), "failed to build dll, continuing with old code")) {
+                dll.onUnload(game);
                 dll.reload();
                 dll.onLoad(game);
             }
@@ -75,7 +77,7 @@ int main(int argc, char** argv) {
         SDL_Delay(10);
     }
 
-    dll.freeGame(game, free);
+    dll.freeGame(game, &allocator);
 
     SDL_Quit();
 

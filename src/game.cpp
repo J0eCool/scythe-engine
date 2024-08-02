@@ -133,27 +133,48 @@ bool in_rect(Vec2 p, Rect rect) {
     return in_rect(p, rect.pos, rect.size);
 }
 
-struct Button {
+struct UIElement {
+    virtual void render(Renderer* renderer) = 0;
+};
+
+struct Button : public UIElement {
     const char* label = "";
     bool isHovered = false;
     bool isPressed = false;
     Vec2 pos { 0, 0 };
     Vec2 size { 0, 0 };
+
+    void render(Renderer* renderer) override {
+        if (isPressed && isHovered) {
+            renderer->setColor(0.25, 0.25, 0.25, 1.0);
+        } else if (isHovered) {
+            renderer->setColor(0.75, 0.75, 0.75, 1.0);
+        } else {
+            renderer->setColor(0.5, 0.5, 0.5, 1.0);
+        }
+        renderer->drawRect(pos, size);
+        renderer->drawText(label, pos + Vec2{10, 11});
+    }
 };
 
 class UI {
+    Allocator* _allocator;
     Input* _input;
     Vec2 _padding { 10 }; // space between elements
 
     Vec2 _origin; // starting point of cursor
     Vec2 _cursor; // current position to place an element
     float _lineHeight; // max height of elements on current line
-    std::vector<Button> _buttons;
+    std::vector<UIElement*> _elements;
     // this is a hacky way to track state, and won't scale to other widgets
     int _buttonIdx;
 public:
-    // UI() : _input(nullptr) {}
-    UI(Input* input) : _input(input) {}
+    UI(Allocator *allocator, Input* input)
+        : _allocator(allocator), _input(input) {}
+
+    void unload() {
+        _elements.clear();
+    }
 
     void startUpdate(Vec2 pos) {
         _cursor = _origin = pos;
@@ -162,16 +183,7 @@ public:
     }
 
     void render(Renderer* renderer) {
-        for (auto &button : _buttons) {
-            if (button.isPressed && button.isHovered) {
-                renderer->setColor(0.25, 0.25, 0.25, 1.0);
-            } else if (button.isHovered) {
-                renderer->setColor(0.75, 0.75, 0.75, 1.0);
-            } else {
-                renderer->setColor(0.5, 0.5, 0.5, 1.0);
-            }
-            renderer->drawRect(button.pos, button.size);
-            renderer->drawText(button.label, button.pos + Vec2{10, 11});
+        for (auto &button : _elements) {
         }
     }
 
@@ -179,11 +191,12 @@ public:
     /// @param label text to display on the button
     /// @return true when clicked on
     bool button(const char* label) {
-        while (_buttonIdx >= _buttons.size()) {
-            _buttons.emplace_back();
+        while (_buttonIdx >= _elements.size()) {
+            _elements.push_back((Button*)_allocator->malloc(sizeof(Button)));
         }
-        Button &button = _buttons[_buttonIdx];
-        _buttonIdx++;
+        // ok this actually is a pain because we'd need an enum to track what
+        // type of element we're dealing with ANYWAY
+        Button &button = _elements[_buttonIdx++];
         button.label = label;
         button.pos = _cursor;
         // hardcoded font size of 12x28 lmao
@@ -214,6 +227,7 @@ public:
 };
 
 struct Game {
+    Allocator* _allocator;
     SDL_Window* _window;
     Renderer* _renderer;
     Input _input;
@@ -221,7 +235,7 @@ struct Game {
     float t = 0.0;
     std::vector<SDL_Texture*> _textures;
     bool _quit = false;
-    UI _ui = UI(&_input);
+    UI _ui;
 
     std::mt19937 _rand_engine;
 
@@ -229,7 +243,7 @@ struct Game {
     std::vector<Bullet> _bullets;
     std::vector<int> _texIndices;
 
-    Game(void* (*_calloc)(size_t, size_t)) {
+    Game(Allocator* allocator) : _allocator(allocator), _ui(_allocator, &_input) {
         _window = SDL_CreateWindow(
             "This Game Is My Second Chance",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -245,7 +259,7 @@ struct Game {
         assert_SDL(renderer, "renderer creation failed");
         /// HACK: we should probably allocate _renderer directly as a struct member
         /// we heap-allocate it because it's easier than dealing with constructor shenanigans
-        _renderer = (Renderer*)_calloc(1, sizeof(Renderer));
+        _renderer = (Renderer*)_allocator->calloc(1, sizeof(Renderer));
         new (_renderer) Renderer(renderer);
     }
 
@@ -256,10 +270,7 @@ struct Game {
         SDL_DestroyRenderer(_renderer->sdl());
         SDL_DestroyWindow(_window);
 
-        // _free(_renderer);
-        // just leak it for now, should only be when exiting the program so nbd
-        // in future probably want to pass in an Allocator struct that has
-        // malloc+free, and pass that around zig-style
+        _allocator->free(_renderer);
     }
 
     // data per grid cell
@@ -286,6 +297,12 @@ struct Game {
         int renderSize; // NxN size of total display area on screen
         int texRepetitions; // render an NxN grid of textures
     } params;
+
+    /// @brief Called before unloading the dll. Clear any state that can't be
+    /// persisted across reloads.
+    void onUnload() {
+        _ui.unload();
+    }
 
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
@@ -636,15 +653,20 @@ struct Game {
 extern "C" {
 
 __declspec(dllexport)
-Game* newGame(void* (*_calloc)(size_t, size_t)) {
-    Game* game = (Game*)_calloc(1, sizeof(Game));
-    new (game) Game(_calloc);
+Game* newGame(Allocator* allocator) {
+    Game* game = (Game*)allocator->calloc(1, sizeof(Game));
+    new (game) Game(allocator);
     return game;
 }
 __declspec(dllexport)
-void freeGame(Game* game, void (*_free)(void*)) {
+void freeGame(Game* game, Allocator* allocator) {
     game->~Game();
-    _free(game);
+    allocator->free(game);
+}
+
+__declspec(dllexport)
+void onUnload(Game* game) {
+    game->onUnload();
 }
 
 __declspec(dllexport)
