@@ -58,13 +58,14 @@ public:
         SDL_RenderDrawRect(_sdlRenderer, &rect);
     }
 
+    static const Vec2 fontSize;
     void drawText(const char* text, Vec2 pos) {
         drawText(text, pos.x, pos.y);
     }
     void drawText(const char* text, float x, float y) {
         int i = 0;
-        int w = 12;
-        int h = 28;
+        int w = (int)fontSize.x;
+        int h = (int)fontSize.y;
         while (char c = text[i++]) {
             if (c < 0) {
                 // unsupported character; no extended ASCII tyvm
@@ -90,3 +91,5 @@ public:
         drawImage(texture, pos.x, pos.y, size.x, size.y);
     }
 };
+
+const Vec2 Renderer::fontSize { 12, 28 };
