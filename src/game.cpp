@@ -352,7 +352,9 @@ struct Game {
     UI _ui;
     bool _showUI = false;
 
-    std::mt19937 _rand_engine;
+    std::ranlux24_base _rand_engine;
+    // latest seed used to generate textures
+    Uint32 _textureSeed;
 
     Player _player;
     std::vector<Bullet> _bullets;
@@ -422,10 +424,11 @@ struct Game {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        // this doesn't actually seed us :(
         std::random_device r;
-        std::seed_seq seed {r(), r(), r(), r(), r(), r(), r(), r()};
-        _rand_engine = std::mt19937(seed);
+        // random_device seems to give a consistent value in dll, so offset by
+        // ticks elapsed since program start to get new results on each reload
+        _textureSeed = r();
+        _rand_engine = std::ranlux24_base(_textureSeed);
 
         _input.addKeybind("quit", SDLK_ESCAPE);
         _input.addKeybind("reload", SDLK_r);
@@ -489,6 +492,8 @@ struct Game {
     void generateTextures() {
         Tracer("Game::generateTextures");
         Timer timer;
+
+        _rand_engine.seed(_textureSeed);
 
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
@@ -602,14 +607,14 @@ struct Game {
                         if (params.mode == 0) {
                             *pixel = ul_s.color;
                         } else if (params.mode == 1) {
-                            Color a = lerp(uv.x, ul_s.color, ur_s.color);
-                            Color b = lerp(uv.x, bl_s.color, br_s.color);
-                            Color c = lerp(uv.y, a, b);
+                            Color a = smoothstep(uv.x, ul_s.color, ur_s.color);
+                            Color b = smoothstep(uv.x, bl_s.color, br_s.color);
+                            Color c = smoothstep(uv.y, a, b);
                             *pixel = c;
                         } else {
-                            float a = lerp(uv.x, ul_s.v, ur_s.v);
-                            float b = lerp(uv.x, bl_s.v, br_s.v);
-                            float c = lerp(uv.y, a, b);
+                            float a = smoothstep(uv.x, ul_s.v, ur_s.v);
+                            float b = smoothstep(uv.x, bl_s.v, br_s.v);
+                            float c = smoothstep(uv.y, a, b);
                             int cc = 0xff*(params.noiseScale*c);
                             if (params.mode == 2) {
                                 *pixel = {0, 0, 0, 0xff};
@@ -702,17 +707,29 @@ struct Game {
         }
     }
 
+    /// @brief UI Widget that toggles a boolean variable
+    /// @param option the option to display and update
+    /// @param ifOn text to show when `option` is `true`
+    /// @param ifOff text when `option` is `false`
+    /// @return `true` when clicked (for callback purposes)
+    bool uiToggle(bool &option, const char* ifOn, const char* ifOff) {
+        if (_ui.button(option ? ifOn : ifOff)) {
+            option = !option;
+            return true;
+        }
+        return false;
+    }
+
     void updateUI() {
         _ui.startUpdate({ 30, 30 });
-        if (_ui.button(_showUI ? "hide" : "show")) {
-            _showUI = !_showUI;
-        }
+        uiToggle(_showUI, "hide", "show");
         if (!_showUI) {
             return;
         }
 
         _ui.line();
         if (_ui.button("reroll")) {
+            _textureSeed = _rand_engine();
             generateTextures();
         }
 
@@ -728,7 +745,7 @@ struct Game {
         uiParam("tex size", params.texSize,
             max(4, params.texSize/2), min(4096, params.texSize*2));
         uiParam("tex repetitions", params.texRepetitions,
-            max(1, params.texRepetitions-1), params.texRepetitions+1);
+            max(1, params.texRepetitions/2), min(64, params.texRepetitions*2));
     }
 
     void render() {

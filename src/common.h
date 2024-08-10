@@ -147,3 +147,11 @@ T lerp(float t, T lo, T hi) {
     t = clamp(t, 0.0f, 1.0f);
     return (1-t)*lo + t*hi;
 }
+
+template <typename T>
+T smoothstep(float t, T lo, T hi) {
+    t = clamp(t, 0.0f, 1.0f);
+    // 3x^2 - 2x^3
+    float s = t * t * (3 - 2*t);
+    return (1-s)*lo + s*hi;
+}
