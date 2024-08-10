@@ -406,6 +406,7 @@ struct Game {
         //   1 - interpolate between the color values of each
         //   2 - map noise value onto a color gradient
         //   3 - map noise value onto a grayscale gradient
+        //   4 - same as mode 3, but color-coded per tile variant
         int mode = 3;
         int noiseScale = 2; // range of the scalar noise values
         int texSize = 32; // NxN pixel size of generated texture
@@ -633,9 +634,19 @@ struct Game {
                                 }
                             } else if (params.mode == 3) {
                                 if ((cc/0x100) % 2 == 0) {
-                                    cc = (0xff-cc) % 0x100;
+                                    cc = (0xff - cc%0x100);
+                                } else {
+                                    cc %= 0x100;
                                 }
                                 *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
+                            } else if (params.mode == 4) {
+                                if ((cc/0x100) % 2 == 0) {
+                                    cc = (0xff - cc%0x100);
+                                } else {
+                                    cc %= 0x100;
+                                }
+                                const float r = 64.7;
+                                *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
                             } else {
                                 check(false, "invalid mode");
                                 return surface;
@@ -737,7 +748,7 @@ struct Game {
             max(3, params.noiseSize-1), params.noiseSize+1);
         uiParam("num textures", params.numTextures,
             max(1, params.numTextures-1), params.numTextures+1);
-        const int nModes = 4;
+        const int nModes = 5;
         uiParam("mode", params.mode,
             (params.mode+nModes-1) % nModes, (params.mode+1) % nModes);
         uiParam("noise scale", params.noiseScale,
@@ -767,12 +778,14 @@ struct Game {
                     tileSize, tileSize);
             }
         }
-        int idx = int(t*5) % _textures.size();
-        Vec2 texPos { 760-(float)tileSize, screenSize.y-(float)tileSize-40 };
-        _renderer->drawImage(_textures[idx], texPos, {tileSize, tileSize});
-        char buffer[16];
-        sprintf(buffer, "%d", idx);
-        _renderer->drawText(buffer, texPos.x + 10, texPos.y + 10);
+
+        int n = (int)ceil(sqrt(_textures.size()));
+        for (int i = 0; i < _textures.size(); ++i) {
+            float size = params.texSize;
+            _renderer->drawImage(_textures[i],
+                {760-size*(n+0.5f - i%n), screenSize.y-size*(n+0.5f - i/n)},
+                {size, size});
+        }
 
         _renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {
