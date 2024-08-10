@@ -57,9 +57,11 @@ int main(int argc, char** argv) {
         }
         if (modified.dwLowDateTime != lastDateTime) {
             lastDateTime = modified.dwLowDateTime;
+            Timer timer;
 
             log("rebuilding game.dll...");
             if (check(buildGame(), "failed to build dll, continuing with old code")) {
+                log("  game built in %fms", timer.elapsed());
                 dll.onUnload(game);
                 dll.reload();
                 dll.onLoad(game);

@@ -74,6 +74,22 @@ public:
     }
 };
 
+class Timer {
+    Uint32 _start;
+public:
+    Timer() : _start(SDL_GetTicks()) {}
+
+    /// @brief Time elapsed since timer creation, in milliseconds
+    Uint32 elapsedMs() const {
+        return SDL_GetTicks() - _start;
+    }
+    /// @brief Time elapsed since timer creation, in seconds
+    /// (with millisecond precision)
+    float elapsed() const {
+        return elapsedMs() / 1000.0f;
+    }
+};
+
 /// Math stuff
 
 /// @brief Constrains a value between two extremes

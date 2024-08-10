@@ -149,7 +149,7 @@ struct Button {
             renderer->setColor(0.5, 0.5, 0.5, 1.0);
         }
         renderer->drawRect(pos, size);
-        renderer->drawText(label, pos + Vec2{10, 11});
+        renderer->drawText(label, pos + Vec2{5});
     }
 };
 
@@ -259,7 +259,7 @@ public:
         button.label = label;
         button.pos = _cursor;
         button.size = Renderer::fontSize * Vec2{(float)strlen(label), 1}
-            + 2.0f*_padding;
+            + _padding;
 
         _cursor.x += button.size.x + _padding.x;
         _lineHeight = max(_lineHeight, button.size.y);
@@ -278,17 +278,13 @@ public:
         }
     }
 
-    /// @brief helper function for label-making because we repeat this logic a lot
-    Label& nextLabel() {
+    void label(const char* text) {
         UIElement &elem = nextElem();
         if (elem.kind != uiLabel) {
             elem.kind = uiLabel;
             elem.label = Label();
         }
-        return elem.label;
-    }
-    void label(const char* text) {
-        Label &label = nextLabel();
+        Label &label = elem.label;
         strncpy(label.buffer, text, Label::maxLen);
         int len = min(strlen(text), Label::maxLen);
         // Label::maxLen is 1 less than the buffer size, so we always have room
@@ -350,11 +346,11 @@ struct Game {
     SDL_Window* _window;
     Renderer* _renderer;
     Input _input;
-    int gameMode = 0;
     float t = 0.0;
     std::vector<SDL_Texture*> _textures;
     bool _quit = false;
     UI _ui;
+    bool _showUI = false;
 
     std::mt19937 _rand_engine;
 
@@ -401,20 +397,20 @@ struct Game {
 
     struct {
         // params afffecting generation
-        int noiseSize; // generate an NxN grid of samples
-        int numTextures; // generate N texture variations
+        int noiseSize = 11; // generate an NxN grid of samples
+        int numTextures = 8; // generate N texture variations
         // `mode` is how to display the noise data
         //   0 - display each grid cell using the upper-left point's color
         //   1 - interpolate between the color values of each
         //   2 - map noise value onto a color gradient
         //   3 - map noise value onto a grayscale gradient
-        int mode;
-        int noiseScale; // range of the scalar noise values
-        int texSize; // NxN pixel size of generated texture
+        int mode = 3;
+        int noiseScale = 2; // range of the scalar noise values
+        int texSize = 32; // NxN pixel size of generated texture
 
         // params affecting display
-        int renderSize; // NxN size of total display area on screen
-        int texRepetitions; // render an NxN grid of textures
+        int renderSize = 1024; // NxN size of total display area on screen
+        int texRepetitions = 16; // render an NxN grid of textures
     } params;
 
     /// @brief Called before unloading the dll. Clear any state that can't be
@@ -426,16 +422,6 @@ struct Game {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        // init params on load so they change on update
-        // todo: change these with UI and then persist them across reloads
-        params.noiseSize = 8;
-        params.numTextures = 16;
-        params.mode = 2;
-        params.texSize = 128;
-        params.noiseScale = 2;
-        params.renderSize = 1024;
-        params.texRepetitions = 8;
-
         // this doesn't actually seed us :(
         std::random_device r;
         std::seed_seq seed {r(), r(), r(), r(), r(), r(), r(), r()};
@@ -502,10 +488,7 @@ struct Game {
 
     void generateTextures() {
         Tracer("Game::generateTextures");
-        // note that reloading the dll gives us a new rand seed each time
-        // which on reflection should be properly alarming
-        // srand(21337);
-        auto start = SDL_GetTicks();
+        Timer timer;
 
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
@@ -537,8 +520,7 @@ struct Game {
             SDL_FreeSurface(surface);
         }
 
-        auto end = SDL_GetTicks();
-        log("Generated %d textures in %dms", _textures.size(), end-start);
+        log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
     }
 
     SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize) {
@@ -675,16 +657,6 @@ struct Game {
             return;
         }
 
-        if (_input.didPress("1") || _input.didPress("rclick")) {
-            generateTextures();
-        }
-        if (_input.didPress("click")) {
-            Vec2 mouse = _input.getMousePos();
-            Vec2 dir { randFloat(-1,1), randFloat(-1,1) };
-            Bullet bullet {mouse, 1500.0f*dir, 1.5};
-            _bullets.push_back(bullet);
-        }
-
         if (_input.didPress("shoot")) {
             Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
             Bullet bullet {_player._pos, vel, 1.5};
@@ -713,28 +685,50 @@ struct Game {
         _player.update(dt);
     }
 
+    void uiParam(const char* text, int &val, int lo, int hi) {
+        _ui.line();
+        _ui.labels(text, ": ");
+        int set = val;
+        if (_ui.button("<")) {
+            set = lo;
+        }
+        _ui.label(val);
+        if (_ui.button(">")) {
+            set = hi;
+        }
+        if (set != val) {
+            val = set;
+            generateTextures();
+        }
+    }
+
     void updateUI() {
-        _ui.startUpdate({ 30, 100 });
+        _ui.startUpdate({ 30, 30 });
+        if (_ui.button(_showUI ? "hide" : "show")) {
+            _showUI = !_showUI;
+        }
+        if (!_showUI) {
+            return;
+        }
+
+        _ui.line();
         if (_ui.button("reroll")) {
             generateTextures();
         }
-        _ui.line();
 
-        _ui.label("I am the UI;");
-        _ui.label("hear me roar");
-        static int nProblems = 0;
-        if (_ui.button("roar")) {
-            nProblems++;
-        }
-        _ui.line();
-
-        _ui.labels("number of problems: ", nProblems);
-
-        if (_input.isHeld("2")) {
-            // tests transient elements
-            _ui.line();
-            _ui.label("now you see me");
-        }
+        uiParam("noise size", params.noiseSize,
+            max(3, params.noiseSize-1), params.noiseSize+1);
+        uiParam("num textures", params.numTextures,
+            max(1, params.numTextures-1), params.numTextures+1);
+        const int nModes = 4;
+        uiParam("mode", params.mode,
+            (params.mode+nModes-1) % nModes, (params.mode+1) % nModes);
+        uiParam("noise scale", params.noiseScale,
+            max(1, params.noiseScale-1), params.noiseScale+1);
+        uiParam("tex size", params.texSize,
+            max(4, params.texSize/2), min(4096, params.texSize*2));
+        uiParam("tex repetitions", params.texRepetitions,
+            max(1, params.texRepetitions-1), params.texRepetitions+1);
     }
 
     void render() {
