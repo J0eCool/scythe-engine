@@ -183,11 +183,11 @@ struct Program {
         int mode = 3;
         int noiseScale = 2; // range of the scalar noise values
         int texSize = 32; // NxN pixel size of generated texture
+    } texParams;
 
-        // params affecting display
-        int renderSize = 1024; // NxN size of total display area on screen
-        int texRepetitions = 16; // render an NxN grid of textures
-    } params;
+    // params affecting display
+    int renderSize = 1024; // NxN size of total display area on screen
+    int gridSize = 16; // render an NxN grid of textures
 
     /// @brief Called before unloading the dll. Clear any state that can't be
     /// persisted across reloads.
@@ -275,11 +275,11 @@ struct Program {
         _textures.clear();
         _texIndices.clear();
         // noise width/height
-        int n = params.noiseSize;
+        int n = texParams.noiseSize;
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
 
-        for (int i = 0; i < params.numTextures; ++i) {
+        for (int i = 0; i < texParams.numTextures; ++i) {
             NoiseSample noise[n*n];
             generateNoise(noise, n);
             // set the generated noise's boundary to be equal to the boundary noise
@@ -293,7 +293,7 @@ struct Program {
                 noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
                 noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
-            SDL_Surface *surface = generateSurface(noise, n, params.texSize);
+            SDL_Surface *surface = generateSurface(noise, n, texParams.texSize);
             auto sdl = _renderer->sdl();
             _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
             SDL_FreeSurface(surface);
@@ -378,9 +378,9 @@ struct Program {
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
                             + i*surface->format->BytesPerPixel);
-                        if (params.mode == 0) {
+                        if (texParams.mode == 0) {
                             *pixel = ul_s.color;
-                        } else if (params.mode == 1) {
+                        } else if (texParams.mode == 1) {
                             Color a = smoothstep(uv.x, ul_s.color, ur_s.color);
                             Color b = smoothstep(uv.x, bl_s.color, br_s.color);
                             Color c = smoothstep(uv.y, a, b);
@@ -389,8 +389,8 @@ struct Program {
                             float a = smoothstep(uv.x, ul_s.v, ur_s.v);
                             float b = smoothstep(uv.x, bl_s.v, br_s.v);
                             float c = smoothstep(uv.y, a, b);
-                            int cc = 0xff*(params.noiseScale*c);
-                            if (params.mode == 2) {
+                            int cc = 0xff*(texParams.noiseScale*c);
+                            if (texParams.mode == 2) {
                                 *pixel = {0, 0, 0, 0xff};
                                 // RGB cycles in 3s, value up/down cycles in 2s
                                 bool even = (cc % 0x200) < 0x100;
@@ -405,14 +405,14 @@ struct Program {
                                     if (even) cc = 0xff - (cc%0x100);
                                     pixel->b = cc % 0x100;
                                 }
-                            } else if (params.mode == 3) {
+                            } else if (texParams.mode == 3) {
                                 if ((cc/0x100) % 2 == 0) {
                                     cc = (0xff - cc%0x100);
                                 } else {
                                     cc %= 0x100;
                                 }
                                 *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
-                            } else if (params.mode == 4) {
+                            } else if (texParams.mode == 4) {
                                 if ((cc/0x100) % 2 == 0) {
                                     cc = (0xff - cc%0x100);
                                 } else {
@@ -517,19 +517,19 @@ struct Program {
             generateTextures();
         }
 
-        uiParam("noise size", params.noiseSize,
-            max(3, params.noiseSize-1), params.noiseSize+1);
-        uiParam("num textures", params.numTextures,
-            max(1, params.numTextures-1), params.numTextures+1);
+        uiParam("noise size", texParams.noiseSize,
+            max(3, texParams.noiseSize-1), texParams.noiseSize+1);
+        uiParam("num textures", texParams.numTextures,
+            max(1, texParams.numTextures-1), texParams.numTextures+1);
         const int nModes = 5;
-        uiParam("mode", params.mode,
-            (params.mode+nModes-1) % nModes, (params.mode+1) % nModes);
-        uiParam("noise scale", params.noiseScale,
-            max(1, params.noiseScale-1), params.noiseScale+1);
-        uiParam("tex size", params.texSize,
-            max(4, params.texSize/2), min(4096, params.texSize*2));
-        uiParam("tex repetitions", params.texRepetitions,
-            max(1, params.texRepetitions/2), min(64, params.texRepetitions*2));
+        uiParam("mode", texParams.mode,
+            (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes);
+        uiParam("noise scale", texParams.noiseScale,
+            max(1, texParams.noiseScale-1), texParams.noiseScale+1);
+        uiParam("tex size", texParams.texSize,
+            max(4, texParams.texSize/2), min(4096, texParams.texSize*2));
+        uiParam("grid size", gridSize,
+            max(1, gridSize/2), min(64, gridSize*2));
     }
 
     void render() {
@@ -538,8 +538,8 @@ struct Program {
         _renderer->setColor(0.3, 0.2, 0.1, 1);
         _renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
 
-        int rep = params.texRepetitions;
-        float tileSize = params.renderSize / rep;
+        int rep = gridSize;
+        float tileSize = renderSize / rep;
         for (int i = 0; i < rep; ++i) {
             for (int j = 0; j < rep; ++j) {
                 int idxIdx = i*rep + j;
@@ -554,7 +554,7 @@ struct Program {
 
         int n = (int)ceil(sqrt(_textures.size()));
         for (int i = 0; i < _textures.size(); ++i) {
-            float size = params.texSize;
+            float size = texParams.texSize;
             _renderer->drawImage(_textures[i],
                 {760-size*(n+0.5f - i%n), screenSize.y-size*(n+0.5f - i/n)},
                 {size, size});
