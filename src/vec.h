@@ -119,3 +119,23 @@ Vec2i floorv(Vec2f v) {
 Vec2i ceilv(Vec2f v) {
     return { (int)ceil(v.x), (int)ceil(v.y) };
 }
+
+/// @brief Determines whether a point is within an axis-aligned rectangle
+/// @param p point to test
+/// @param rPos upper-left corner of the rectangle
+/// @param rSize rectangle's size
+/// @return `true` iff the point is within the rect
+bool in_rect(Vec2 p, Vec2 rPos, Vec2 rSize) {
+    return p.x >= rPos.x && p.x <= rPos.x + rSize.x &&
+        p.y >= rPos.y && p.y <= rPos.y + rSize.y;
+}
+
+/// @brief Determines whether a point is within an axis-aligned rectangle
+/// @tparam Rect any type with Vec2 fields `pos` and `size`
+/// @param p point to test
+/// @param rect rectangular object
+/// @return `true` iff the point is within the rect
+template <typename Rect>
+bool in_rect(Vec2 p, Rect rect) {
+    return in_rect(p, rect.pos, rect.size);
+}
