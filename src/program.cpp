@@ -114,7 +114,7 @@ struct Player : public Entity {
     }
 };
 
-struct Game {
+struct Program {
     Allocator* _allocator;
     SDL_Window* _window;
     Renderer* _renderer;
@@ -133,7 +133,7 @@ struct Game {
     std::vector<Bullet> _bullets;
     std::vector<int> _texIndices;
 
-    Game(Allocator* allocator) : _allocator(allocator), _ui(_allocator, &_input) {
+    Program(Allocator* allocator) : _allocator(allocator), _ui(_allocator, &_input) {
         _window = SDL_CreateWindow(
             "This Game Is My Second Chance",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -153,7 +153,7 @@ struct Game {
         new (_renderer) Renderer(renderer);
     }
 
-    ~Game() {
+    ~Program() {
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
         }
@@ -579,40 +579,40 @@ struct Game {
 extern "C" {
 
 __declspec(dllexport)
-Game* newGame(Allocator* allocator) {
-    Game* game = (Game*)allocator->calloc(1, sizeof(Game));
-    new (game) Game(allocator);
+Program* newGame(Allocator* allocator) {
+    Program* game = (Program*)allocator->calloc(1, sizeof(Program));
+    new (game) Program(allocator);
     return game;
 }
 __declspec(dllexport)
-void freeGame(Game* game, Allocator* allocator) {
-    game->~Game();
+void freeGame(Program* game, Allocator* allocator) {
+    game->~Program();
     allocator->free(game);
 }
 
 __declspec(dllexport)
-void onUnload(Game* game) {
+void onUnload(Program* game) {
     game->onUnload();
 }
 
 __declspec(dllexport)
-void onLoad(Game* game) {
+void onLoad(Program* game) {
     game->onLoad();
 }
 
 __declspec(dllexport)
-bool shouldQuit(Game* game) {
+bool shouldQuit(Program* game) {
     return game->shouldQuit();
 }
 
 __declspec(dllexport)
-void update(Game* game, float dt) {
+void update(Program* game, float dt) {
     game->t += dt;
     game->update(dt);
 }
 
 __declspec(dllexport)
-const void renderScene(Game* game) {
+const void renderScene(Program* game) {
     SDL_Renderer* renderer = game->_renderer->sdl();
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
     // SDL_RenderDrawRect(renderer, nullptr);

@@ -13,7 +13,7 @@
 /// @return true iff the build succeeded
 bool buildGame() {
     fflush(stdout);
-    const char* cmd = "g++ -o game.dll ../src/game.cpp"
+    const char* cmd = "g++ -o game.dll ../src/program.cpp"
         " -s -shared -lmingw32 -lSDL2 -lSDL2_image"
         " -fdiagnostics-color=always -g"
         ;
@@ -42,9 +42,9 @@ int main(int argc, char** argv) {
     DWORD lastDateTime = 0;
     // Main game loop
     while (!dll.shouldQuit(game)) {
-        // check game.cpp for changes
+        // check program.cpp for changes
         FILETIME modified;
-        const char* filename = "../src/game.cpp";
+        const char* filename = "../src/program.cpp";
         HANDLE file = CreateFile(filename, 0, 0, nullptr,
             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
         assert(file != INVALID_HANDLE_VALUE, "failed to load file %s", filename);
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 
             log("rebuilding game.dll...");
             if (check(buildGame(), "failed to build dll, continuing with old code")) {
-                log("  game built in %fms", timer.elapsed());
+                log("  game built in %fs", timer.elapsed());
                 dll.onUnload(game);
                 dll.reload();
                 dll.onLoad(game);
