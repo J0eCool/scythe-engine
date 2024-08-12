@@ -645,7 +645,7 @@ struct Game {
                                 } else {
                                     cc %= 0x100;
                                 }
-                                const float r = 64.7;
+                                const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
                             } else {
                                 check(false, "invalid mode");
