@@ -23,8 +23,10 @@ struct Program {
 
     GameScene _gameScene;
     TexGenScene _texScene;
+    void* _curScene;
 
     Program(Allocator* allocator) : _allocator(allocator), _texScene(_allocator, &_input) {
+        _curScene = &_texScene;
         _window = SDL_CreateWindow(
             "This Game Is My Second Chance",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -103,18 +105,35 @@ struct Program {
             return;
         }
 
-        trace("ui update");
-        _texScene.update(_renderer);
+        // change current scene
+        if (_input.didPress("1")) {
+            _curScene = &_texScene;
+        }
+        if (_input.didPress("2")) {
+            _curScene = &_gameScene;
+        }
 
-        trace("gameScene update");
-        _gameScene.update(&_input, dt);
+        // update current scene
+        if (_curScene == &_texScene) {
+            trace("texture generation update");
+            _texScene.update(_renderer);
+        } else if (_curScene == &_gameScene) {
+            trace("gameScene update");
+            _gameScene.update(&_input, dt);
+        }
+
     }
 
     void render() {
         Tracer trace("Game::render");
 
-        _gameScene.render(_renderer);
-        _texScene.render(_renderer);
+        if (_curScene == &_texScene) {
+            trace("texture generation render");
+            _texScene.render(_renderer);
+        } else if (_curScene == &_gameScene) {
+            trace("gameScene render");
+            _gameScene.render(_renderer);
+        }
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol

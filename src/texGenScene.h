@@ -15,7 +15,6 @@
 #include <SDL2/SDL.h>
 
 class TexGenScene {
-    bool _showUI = false;
     UI _ui;
     std::ranlux24_base _rand_engine;
     // latest seed used to generate textures
@@ -304,10 +303,6 @@ public:
 
     void update(Renderer *renderer) {
         _ui.startUpdate({ 30, 30 });
-        uiToggle(_showUI, "hide", "show");
-        if (!_showUI) {
-            return;
-        }
 
         _ui.line();
         if (_ui.button("reroll")) {
