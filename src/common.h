@@ -6,6 +6,9 @@
 
 #include <SDL2/SDL.h>
 
+static const float PI = 3.1415926535;
+static const float TAU = 2*PI;
+
 struct Allocator {
     void* (*malloc)(size_t);
     void* (*calloc)(size_t, size_t);
