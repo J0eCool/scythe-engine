@@ -14,6 +14,33 @@
 
 #include <SDL2/SDL.h>
 
+struct GradientStep {
+    Color color;
+    float pos; // [0, 1], what value of the gradient is set to this color
+};
+
+struct Gradient {
+    std::vector<GradientStep> steps;
+
+    Gradient() {
+        steps.push_back({Color::black, 0});
+        steps.push_back({Color::white, 1});
+    }
+
+    Color sample(float t) {
+        t = clamp(t);
+        // we assume that the steps are sorted
+        int i = 0;
+        for (; i < steps.size()-1; ++i) {
+            if (steps[i+1].pos >= t) {
+                break;
+            }
+        }
+        float s = (t-steps[i].pos) / (steps[i+1].pos-steps[i].pos);
+        return lerp(s, steps[i].color, steps[i+1].color);
+    }
+};
+
 class TexGenScene {
     UI _ui;
     std::ranlux24_base _rand_engine;
@@ -32,10 +59,11 @@ class TexGenScene {
         //   2 - map noise value onto a color gradient
         //   3 - map noise value onto a grayscale gradient
         //   4 - same as mode 3, but color-coded per tile variant
-        int mode = 3;
+        //   5 - gradient-mapped color values (soon the default)
+        int mode = 5;
         int noiseScale = 2; // range of the scalar noise values
         int texSize = 32; // NxN pixel size of generated texture
-        Color color { 255, 255, 255 };
+        Gradient gradient;
     } texParams;
 
     // params affecting display
@@ -196,7 +224,7 @@ class TexGenScene {
                                 } else {
                                     cc %= 0x100;
                                 }
-                                *pixel = float(cc)/0xff*texParams.color;
+                                *pixel = {Uint8(cc), Uint8(cc), Uint8(cc)};
                             } else if (texParams.mode == 4) {
                                 if ((cc/0x100) % 2 == 0) {
                                     cc = (0xff - cc%0x100);
@@ -205,6 +233,8 @@ class TexGenScene {
                                 }
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
+                            } else if (texParams.mode == 5) {
+                                *pixel = texParams.gradient.sample(c);
                             } else {
                                 check(false, "invalid mode");
                                 return surface;
@@ -251,6 +281,23 @@ class TexGenScene {
             return true;
         }
         return false;
+    }
+
+    /// @brief bootleg color picker
+    /// @param color color to edit
+    /// @return `true` when modified
+    bool uiColor(Color &color) {
+        bool changed = false;
+        changed |= uiParam("R", color.r,
+            Uint8(color.r-1), Uint8(color.r+1),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("G", color.g,
+            Uint8(color.g-1), Uint8(color.g+1),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("B", color.b,
+            Uint8(color.b-1), Uint8(color.b+1),
+            Uint8(0), Uint8(255));
+        return changed;
     }
 
 public:
@@ -329,10 +376,10 @@ public:
         changed |= uiParam("num textures", texParams.numTextures,
             texParams.numTextures-1, texParams.numTextures+1,
             1, 64);
-        const int nModes = 5;
+        const int nModes = 6;
         changed |= uiParam("mode", texParams.mode,
             (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes,
-            0, 4);
+            0, nModes-1);
         changed |= uiParam("noise scale", texParams.noiseScale,
             texParams.noiseScale-1, texParams.noiseScale+1,
             1, 10);
@@ -343,16 +390,8 @@ public:
             gridSize/2, gridSize*2,
             1, 64);
 
-        // bootleg color picker
-        changed |= uiParam("R", texParams.color.r,
-            Uint8(texParams.color.r-1), Uint8(texParams.color.r+1),
-            Uint8(0), Uint8(255));
-        changed |= uiParam("G", texParams.color.g,
-            Uint8(texParams.color.g-1), Uint8(texParams.color.g+1),
-            Uint8(0), Uint8(255));
-        changed |= uiParam("B", texParams.color.b,
-            Uint8(texParams.color.b-1), Uint8(texParams.color.b+1),
-            Uint8(0), Uint8(255));
+        changed |= uiColor(texParams.gradient.steps[0].color);
+        changed |= uiColor(texParams.gradient.steps[1].color);
 
         if (changed) {
             generateTextures(renderer);

@@ -22,7 +22,19 @@ struct Color {
     Color operator*(float s) const {
         return {Uint8(r*s), Uint8(g*s), Uint8(b*s), Uint8(a*s)};
     }
+
+    static const Color black;
+    static const Color white;
+    static const Color red;
+    static const Color green;
+    static const Color blue;
 };
+const Color Color::black { 0x00, 0x00, 0x00 };
+const Color Color::white { 0xff, 0xff, 0xff };
+const Color Color::red   { 0xff, 0x00, 0x00 };
+const Color Color::green { 0x00, 0xff, 0x00 };
+const Color Color::blue  { 0x00, 0x00, 0xff };
+
 Color operator*(float s, Color c) {
     return c*s;
 }
