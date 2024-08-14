@@ -7,7 +7,7 @@
 #include <cstring>
 #include <vector>
 
-struct Button {
+struct UIButton {
     const char* label = "";
     bool isHovered = false;
     bool isPressed = false;
@@ -27,7 +27,7 @@ struct Button {
     }
 };
 
-struct Label {
+struct UILabel {
     static const size_t maxLen = 31;
     char buffer[maxLen+1];
     Vec2 pos { 0, 0 };
@@ -38,20 +38,61 @@ struct Label {
     }
 };
 
+struct UISlider {
+    float pct;
+    Vec2 pos;
+    Vec2 size;
+    bool isHovered, isPressed;
+
+    void render(Renderer* renderer) {
+        Rect tab = tabRect();
+        float barH = 6;
+        renderer->setColor(0.3, 0.3, 0.3);
+        renderer->drawBox(pos + Vec2{tab.size.x, size.y-barH}/2, Vec2{size.x, barH});
+
+        if (isPressed && isHovered) {
+            renderer->setColor(0.25, 0.25, 0.25, 1.0);
+        } else if (isHovered) {
+            renderer->setColor(0.75, 0.75, 0.75, 1.0);
+        } else {
+            renderer->setColor(0.5, 0.5, 0.5, 1.0);
+        }
+        renderer->drawRect(tab);
+    }
+
+    /// @brief Get the rect that corresponds with the tab of the slider
+    Rect tabRect() const {
+        return Rect {
+            pos + pct*Vec2{size.x, 0},
+            {size.y, size.y}
+        };
+    }
+};
+
+struct UIRect {
+    Color color;
+    Vec2 pos;
+    Vec2 size;
+};
+
 enum UIKind {
     uiButton,
     uiLabel,
+    uiSlider,
+    uiRect,
 };
 
 struct UIElement {
     UIKind kind;
     union {
-        Button button;
-        Label label;
+        UIButton button;
+        UILabel label;
+        UISlider slider;
+        UIRect rect;
     };
 
-    UIElement(Button _button) : kind(uiButton), button(_button) {}
-    UIElement(Label _label) : kind(uiLabel), label(_label) {}
+    UIElement(UIButton _button) : kind(uiButton), button(_button) {}
+    UIElement(UILabel _label) : kind(uiLabel), label(_label) {}
 
     void render(Renderer* renderer) {
         switch (kind) {
@@ -60,6 +101,9 @@ struct UIElement {
             break;
         case uiLabel:
             label.render(renderer);
+            break;
+        case uiSlider:
+            slider.render(renderer);
             break;
         }
     }
@@ -78,6 +122,12 @@ struct UIElement {
                 label.buffer,
                 label.pos.x, label.pos.y,
                 label.size.x, label.size.y);
+            break;
+        case uiSlider:
+            log("  slider val=\"%f\" pos=<%f, %f> size=<%f, %f>",
+                slider.pct,
+                slider.pos.x, slider.pos.y,
+                slider.size.x, slider.size.y);
             break;
         default:
             log("  [UNKNOWN]");
@@ -127,9 +177,9 @@ public:
         UIElement &elem = nextElem();
         if (elem.kind != uiButton) {
             elem.kind = uiButton;
-            elem.button = Button();
+            elem.button = UIButton();
         }
-        Button &button = elem.button;
+        UIButton &button = elem.button;
         button.label = label;
         button.pos = _cursor;
         button.size = Renderer::fontSize * Vec2{(float)strlen(label), 1}
@@ -156,12 +206,12 @@ public:
         UIElement &elem = nextElem();
         if (elem.kind != uiLabel) {
             elem.kind = uiLabel;
-            elem.label = Label();
+            elem.label = UILabel();
         }
-        Label &label = elem.label;
-        strncpy(label.buffer, text, Label::maxLen);
-        int len = min(strlen(text), Label::maxLen);
-        // Label::maxLen is 1 less than the buffer size, so we always have room
+        UILabel &label = elem.label;
+        strncpy(label.buffer, text, UILabel::maxLen);
+        int len = min(strlen(text), UILabel::maxLen);
+        // UILabel::maxLen is 1 less than the buffer size, so we always have room
         // for the terminal null byte
         label.buffer[len] = '\0';
         label.pos = _cursor;
@@ -185,12 +235,59 @@ public:
         label(arg);
         labels(args...);
     }
-    void labels() {}
+    void labels() {
+        // base case for template recursion; nop
+    }
 
+    /// @brief A slider the player can click and drag on to change a value
+    /// @param val the value to change
+    /// @param lo lower bound of the value
+    /// @param hi upper bound of the value
+    template <typename T>
+    void slider(T &val, T lo, T hi) {
+        UIElement &elem = nextElem();
+        if (elem.kind != uiSlider) {
+            elem.kind = uiSlider;
+            elem.slider = UISlider();
+        }
+        UISlider &slider = elem.slider;
+        slider.pos = _cursor;
+        slider.size = _padding + Vec2{200, 10};
+
+        _cursor.x += slider.size.x + _padding.x;
+        _lineHeight = max(_lineHeight, slider.size.y);
+
+        Vec2 mouse = _input->getMousePos();
+        slider.isHovered = in_rect(mouse, slider);
+        // handle click
+        if (!slider.isPressed) {
+            slider.isPressed = slider.isHovered && _input->didPress("click");
+        } else if (_input->didRelease("click")) {
+            slider.isPressed = false;
+        }
+        // handle drag
+        if (slider.isPressed) {
+            float t = clamp((mouse.x-slider.pos.x) / slider.size.x);
+            slider.pct = t;
+            // manually lerp so we can round to nearest integer rather than floor
+            val = round((1-t)*lo + t*hi);
+        }
+
+        // always update pct to match current val
+        slider.pct = clamp(float(val-lo) / float(hi-lo));
+    }
+
+    /// @brief Linebreak; moves cursor down to new line, resetting x position
     void line() {
         _cursor.y += _lineHeight + _padding.y;
         _cursor.x = _origin.x;
         _lineHeight = 0;
+    }
+
+    /// @brief Aligns elements horizontally
+    /// @param x Set the cursor's X position to this many pixels from origin
+    void align(float x) {
+        _cursor.x = _origin.x + x;
     }
 
     void debugPrint() const {
@@ -206,7 +303,7 @@ private:
     UIElement& nextElem() {
         if (_elemIdx >= _elements.size()) {
             // arbitrarily default to a label; could templatize this function later
-            _elements.emplace_back(Label());
+            _elements.emplace_back(UILabel());
         }
         // if the elem index is ever off by more than one, we've done something
         // very wrong, and better to crash than allocate a billion slots

@@ -58,6 +58,12 @@ class TexGenScene {
     bool randBool(float p = 0.5) {
         return randFloat() < p;
     }
+    /// @brief Approximate a normal distribution by taking the average of 4 rolls.
+    /// This biases the distribution towards 0.5
+    /// @return A value between 0 and 1
+    float randNormalish() {
+        return (randFloat() + randFloat() + randFloat() + randFloat()) / 4;
+    }
 
     // data per grid cell
     struct NoiseSample {
@@ -210,17 +216,21 @@ class TexGenScene {
         return surface;
     }
 
-    bool uiParam(const char* text, int &val, int lo, int hi) {
+    bool uiParam(const char* text, int &val, int dec, int inc, int lo, int hi) {
         _ui.line();
-        _ui.labels(text, ": ");
+        // right-alin the labels :O
+        _ui.align(240-Renderer::fontSize.x*(strlen(text)+2));
+        _ui.labels(text, ":");
         int set = val;
         if (_ui.button("<")) {
-            set = lo;
+            set = max(dec, lo);
         }
         _ui.label(val);
         if (_ui.button(">")) {
-            set = hi;
+            set = min(inc, hi);
         }
+        _ui.align(400);
+        _ui.slider(set, lo, hi);        
         if (set != val) {
             val = set;
             return true;
@@ -312,18 +322,24 @@ public:
 
         bool changed = false;
         changed |= uiParam("noise size", texParams.noiseSize,
-            max(3, texParams.noiseSize-1), texParams.noiseSize+1);
+            texParams.noiseSize-1, texParams.noiseSize+1,
+            3, texParams.texSize);
         changed |= uiParam("num textures", texParams.numTextures,
-            max(1, texParams.numTextures-1), texParams.numTextures+1);
+            texParams.numTextures-1, texParams.numTextures+1,
+            1, 64);
         const int nModes = 5;
         changed |= uiParam("mode", texParams.mode,
-            (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes);
+            (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes,
+            0, 4);
         changed |= uiParam("noise scale", texParams.noiseScale,
-            max(1, texParams.noiseScale-1), texParams.noiseScale+1);
+            texParams.noiseScale-1, texParams.noiseScale+1,
+            1, 10);
         changed |= uiParam("tex size", texParams.texSize,
-            max(4, texParams.texSize/2), min(4096, texParams.texSize*2));
+            texParams.texSize/2, texParams.texSize*2,
+            4, 512);
         changed |= uiParam("grid size", gridSize,
-            max(1, gridSize/2), min(64, gridSize*2));
+            gridSize/2, gridSize*2,
+            1, 64);
         if (changed) {
             generateTextures(renderer);
         }
@@ -348,7 +364,7 @@ public:
         for (int i = 0; i < _textures.size(); ++i) {
             float size = texParams.texSize;
             renderer->drawImage(_textures[i],
-                {760-size*(n+0.5f - i%n), 1000-size*(n+0.5f - i/n)},
+                {760-size*(n - i%n), 1000-size*(n - i/n)},
                 {size, size});
         }
 

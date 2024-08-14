@@ -95,13 +95,13 @@ public:
 
 /// Math stuff
 
-/// @brief Constrains a value between two extremes
+/// @brief Constrains a value within two bounds
 /// @tparam T numeric type parameter; anything that implements `<` and `>`
 /// @param val the value to clamp
 /// @param lo smallest value to return
 /// @param hi largest value to return
 template <typename T>
-T clamp(T val, T lo, T hi) {
+T clamp(T val, T lo = 0, T hi = 1) {
     if (val < lo) {
         return lo;
     } else if (val > hi) {

@@ -120,6 +120,11 @@ Vec2i ceilv(Vec2f v) {
     return { (int)ceil(v.x), (int)ceil(v.y) };
 }
 
+struct Rect {
+    Vec2 pos;
+    Vec2 size;
+};
+
 /// @brief Determines whether a point is within an axis-aligned rectangle
 /// @param p point to test
 /// @param rPos upper-left corner of the rectangle
@@ -131,11 +136,11 @@ bool in_rect(Vec2 p, Vec2 rPos, Vec2 rSize) {
 }
 
 /// @brief Determines whether a point is within an axis-aligned rectangle
-/// @tparam Rect any type with Vec2 fields `pos` and `size`
+/// @tparam R any type with Vec2 fields `pos` and `size`
 /// @param p point to test
 /// @param rect rectangular object
 /// @return `true` iff the point is within the rect
-template <typename Rect>
-bool in_rect(Vec2 p, Rect rect) {
+template <typename R>
+bool in_rect(Vec2 p, R rect) {
     return in_rect(p, rect.pos, rect.size);
 }

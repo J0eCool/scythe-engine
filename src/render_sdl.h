@@ -70,7 +70,7 @@ public:
         return _sdlRenderer;
     }
 
-    void setColor(float r, float g, float b, float a) {
+    void setColor(float r, float g, float b, float a = 1.0f) {
         SDL_SetRenderDrawColor(_sdlRenderer, 255*r, 255*g, 255*b, 255*a);
     }
     void setColor(Color c) {
@@ -83,9 +83,18 @@ public:
     void drawRect(Vec2 pos, Vec2 size) {
         drawRect(pos.x, pos.y, size.x, size.y);
     }
+    void drawRect(Rect rect) {
+        drawRect(rect.pos.x, rect.pos.y, rect.size.x, rect.size.y);
+    }
     void drawBox(float x, float y, float w, float h) {
         SDL_Rect rect {(int)x, (int)y, (int)w, (int)h};
         SDL_RenderDrawRect(_sdlRenderer, &rect);
+    }
+    void drawBox(Vec2 pos, Vec2 size) {
+        drawBox(pos.x, pos.y, size.x, size.y);
+    }
+    void drawBox(Rect rect) {
+        drawBox(rect.pos.x, rect.pos.y, rect.size.x, rect.size.y);
     }
 
     static const Vec2 fontSize;
