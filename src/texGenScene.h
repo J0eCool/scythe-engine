@@ -251,7 +251,6 @@ class TexGenScene {
 
     template <typename T>
     bool uiParam(const char* text, T &val, T dec, T inc, T lo, T hi) {
-        _ui.line();
         // right-align the labels :O
         _ui.align(240-Renderer::fontSize.x*(strlen(text)+2));
         _ui.labels(text, ":");
@@ -265,6 +264,7 @@ class TexGenScene {
         }
         _ui.align(400);
         _ui.slider(set, lo, hi);        
+        _ui.line();
         if (set != val) {
             val = set;
             return true;
@@ -290,6 +290,8 @@ class TexGenScene {
     /// @return `true` when modified
     bool uiColor(Color &color) {
         bool changed = false;
+        _ui.align(160);
+        _ui.rect(color, Vec2{32});
         changed |= uiParam("R", color.r,
             Uint8(color.r-1), Uint8(color.r+1),
             Uint8(0), Uint8(255));
@@ -395,6 +397,10 @@ public:
             1, 64);
 
         auto &steps = texParams.gradient.steps;
+        for (auto step : steps) {
+            _ui.rect(step.color, Vec2{32});
+        }
+        _ui.line();
         int nColors = steps.size();
         GradientStep &step = steps[colorIdx];
         uiParam("gradient idx", colorIdx,
@@ -412,10 +418,12 @@ public:
             } else {
                 steps.push_back({step.color, 1.0});
             }
+            colorIdx++;
             changed = true;
         }
         if (nColors > 2 && _ui.button("del")) {
             steps.erase(steps.begin()+colorIdx);
+            colorIdx--;
             changed = true;
         }
         changed |= uiParam<float>("pos", step.pos,

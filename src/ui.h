@@ -85,6 +85,11 @@ struct UIRect {
     Color color;
     Vec2 pos;
     Vec2 size;
+
+    void render(Renderer* renderer) {
+        renderer->setColor(color);
+        renderer->drawRect(pos, size);
+    }
 };
 
 enum UIKind {
@@ -116,6 +121,9 @@ struct UIElement {
             break;
         case uiSlider:
             slider.render(renderer);
+            break;
+        case uiRect:
+            rect.render(renderer);
             break;
         }
     }
@@ -290,6 +298,22 @@ public:
         // always update pct to match current val
         slider.pct = clamp(float(val-lo) / float(hi-lo));
     }
+
+    void rect(Color color, Vec2 size) {
+        UIElement &elem = nextElem();
+        if (elem.kind != uiRect) {
+            elem.kind = uiRect;
+            elem.rect = UIRect();
+        }
+        UIRect &rect = elem.rect;
+        rect.pos = _cursor;
+        rect.size = size;
+        rect.color = color;
+
+        _cursor.x += rect.size.x + _padding.x;
+        _lineHeight = max(_lineHeight, rect.size.y);
+    }
+
 
     /// @brief Linebreak; moves cursor down to new line, resetting x position
     void line() {
