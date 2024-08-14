@@ -66,6 +66,8 @@ class TexGenScene {
         Gradient gradient;
     } texParams;
 
+    int colorIdx = 0; // current gradient step index
+
     // params affecting display
     int renderSize = 1024; // NxN size of total display area on screen
     int gridSize = 16; // render an NxN grid of textures
@@ -361,15 +363,17 @@ public:
     }
 
     void update(Renderer *renderer) {
+        // if we change a param that affects texture appearance, regenerate the textures
+        bool changed = false;
+        
         _ui.startUpdate({ 30, 30 });
 
         _ui.line();
         if (_ui.button("reroll")) {
             _textureSeed = _rand_engine();
-            generateTextures(renderer);
+            changed = true;
         }
 
-        bool changed = false;
         changed |= uiParam("noise size", texParams.noiseSize,
             texParams.noiseSize-1, texParams.noiseSize+1,
             3, texParams.texSize);
@@ -390,8 +394,44 @@ public:
             gridSize/2, gridSize*2,
             1, 64);
 
-        changed |= uiColor(texParams.gradient.steps[0].color);
-        changed |= uiColor(texParams.gradient.steps[1].color);
+        auto &steps = texParams.gradient.steps;
+        int nColors = steps.size();
+        GradientStep &step = steps[colorIdx];
+        uiParam("gradient idx", colorIdx,
+            (colorIdx+nColors-1) % nColors, (colorIdx+1) % nColors,
+            0, nColors-1);
+        _ui.line();
+        _ui.align(40);
+        if (_ui.button("add")) {
+            if (colorIdx+1 < steps.size()) {
+                GradientStep newStep {
+                    lerp(0.5, step.color, steps[colorIdx+1].color),
+                    lerp(0.5, step.pos, steps[colorIdx+1].pos)
+                };
+                steps.insert(steps.begin()+colorIdx+1, newStep);
+            } else {
+                steps.push_back({step.color, 1.0});
+            }
+            changed = true;
+        }
+        if (nColors > 2 && _ui.button("del")) {
+            steps.erase(steps.begin()+colorIdx);
+            changed = true;
+        }
+        changed |= uiParam<float>("pos", step.pos,
+            step.pos-0.02, step.pos+0.02,
+            0, 1);
+        changed |= uiColor(step.color);
+
+        // maintain sort order of color steps when pos changes
+        if (colorIdx > 0 && step.pos < steps[colorIdx-1].pos) {
+            std::swap(steps[colorIdx-1], steps[colorIdx]);
+            colorIdx--;
+        }
+        if (colorIdx+1 < steps.size() && step.pos > steps[colorIdx+1].pos) {
+            std::swap(steps[colorIdx], steps[colorIdx+1]);
+            colorIdx++;
+        }
 
         if (changed) {
             generateTextures(renderer);

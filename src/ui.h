@@ -71,6 +71,16 @@ struct UISlider {
     }
 };
 
+template <typename T>
+T sliderLerp(float t, T lo, T hi) {
+    // rewrite lerp so we can round to nearest integer rather than floor
+    return round((1-t)*lo + t*hi);
+}
+template <>
+float sliderLerp<float>(float t, float lo, float hi) {
+    return lerp(t, lo, hi);
+}
+
 struct UIRect {
     Color color;
     Vec2 pos;
@@ -229,7 +239,7 @@ public:
     }
     void label(float num) {
         char buffer[32];
-        sprintf(buffer, "%f", num);
+        sprintf(buffer, "%.2f", num);
         label(buffer);
     }
     template <typename T, typename ...Ts>
@@ -274,8 +284,7 @@ public:
         if (slider.isPressed) {
             float t = clamp((mouse.x-slider.pos.x) / slider.size.x);
             slider.pct = t;
-            // manually lerp so we can round to nearest integer rather than floor
-            val = round((1-t)*lo + t*hi);
+            val = sliderLerp<T>(t, lo, hi);
         }
 
         // always update pct to match current val
