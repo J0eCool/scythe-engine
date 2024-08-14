@@ -35,6 +35,7 @@ class TexGenScene {
         int mode = 3;
         int noiseScale = 2; // range of the scalar noise values
         int texSize = 32; // NxN pixel size of generated texture
+        Color color { 255, 255, 255 };
     } texParams;
 
     // params affecting display
@@ -195,7 +196,7 @@ class TexGenScene {
                                 } else {
                                     cc %= 0x100;
                                 }
-                                *pixel = {Uint8(cc), Uint8(cc), Uint8(cc), 0xff};
+                                *pixel = float(cc)/0xff*texParams.color;
                             } else if (texParams.mode == 4) {
                                 if ((cc/0x100) % 2 == 0) {
                                     cc = (0xff - cc%0x100);
@@ -216,12 +217,13 @@ class TexGenScene {
         return surface;
     }
 
-    bool uiParam(const char* text, int &val, int dec, int inc, int lo, int hi) {
+    template <typename T>
+    bool uiParam(const char* text, T &val, T dec, T inc, T lo, T hi) {
         _ui.line();
-        // right-alin the labels :O
+        // right-align the labels :O
         _ui.align(240-Renderer::fontSize.x*(strlen(text)+2));
         _ui.labels(text, ":");
-        int set = val;
+        T set = val;
         if (_ui.button("<")) {
             set = max(dec, lo);
         }
@@ -340,6 +342,18 @@ public:
         changed |= uiParam("grid size", gridSize,
             gridSize/2, gridSize*2,
             1, 64);
+
+        // bootleg color picker
+        changed |= uiParam("R", texParams.color.r,
+            Uint8(texParams.color.r-1), Uint8(texParams.color.r+1),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("G", texParams.color.g,
+            Uint8(texParams.color.g-1), Uint8(texParams.color.g+1),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("B", texParams.color.b,
+            Uint8(texParams.color.b-1), Uint8(texParams.color.b+1),
+            Uint8(0), Uint8(255));
+
         if (changed) {
             generateTextures(renderer);
         }

@@ -50,7 +50,9 @@ struct UISlider {
         renderer->setColor(0.3, 0.3, 0.3);
         renderer->drawBox(pos + Vec2{tab.size.x, size.y-barH}/2, Vec2{size.x, barH});
 
-        if (isPressed && isHovered) {
+        if (isPressed) {
+            // set to pressed color regardless of if it's hovered, because
+            // click+drag on a slider updates when the mouse leaves the bounds
             renderer->setColor(0.25, 0.25, 0.25, 1.0);
         } else if (isHovered) {
             renderer->setColor(0.75, 0.75, 0.75, 1.0);
@@ -258,7 +260,10 @@ public:
         _lineHeight = max(_lineHeight, slider.size.y);
 
         Vec2 mouse = _input->getMousePos();
-        slider.isHovered = in_rect(mouse, slider);
+        slider.isHovered = in_rect(mouse, slider.pos,
+            // add the tab size to the acceptable slider bounds
+            /// TODO: more accurate input handling means revisit this
+            slider.size+Vec2{slider.size.y,0});
         // handle click
         if (!slider.isPressed) {
             slider.isPressed = slider.isHovered && _input->didPress("click");
