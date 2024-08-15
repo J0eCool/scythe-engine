@@ -350,10 +350,10 @@ public:
                 /* [x][n-1] */ noise[j+n*(n-1)] = boundary[j+n];
                 /* [0][y]   */ noise[j*n] = boundary[j*n];
                 /* [n-1][y] */ noise[j*n+n-1] = boundary[j*n+n-1];
-                noise[j].color.g = noise[j].color.r; noise[j].color.b = noise[j].color.r;
-                noise[j+n*(n-1)].color.g = noise[j+n*(n-1)].color.r; noise[j+n*(n-1)].color.b = noise[j+n*(n-1)].color.r;
-                noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
-                noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
+                // noise[j].color.g = noise[j].color.r; noise[j].color.b = noise[j].color.r;
+                // noise[j+n*(n-1)].color.g = noise[j+n*(n-1)].color.r; noise[j+n*(n-1)].color.b = noise[j+n*(n-1)].color.r;
+                // noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
+                // noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
             SDL_Surface *surface = generateSurface(noise, n, texParams.texSize);
             auto sdl = renderer->sdl();
@@ -399,6 +399,11 @@ public:
         auto &steps = texParams.gradient.steps;
         for (auto step : steps) {
             _ui.rect(step.color, Vec2{32});
+        }
+        if (_ui.button("reset")) {
+            texParams.gradient = Gradient{};
+            changed = true;
+            colorIdx = 0;
         }
         _ui.line();
         int nColors = steps.size();
