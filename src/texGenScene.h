@@ -451,18 +451,28 @@ public:
         }
     }
 
+    Vec2 tileSize() const {
+        return Vec2{(float)renderSize} / gridSize;
+    }
+
+    SDL_Texture* textureForIndex(int index) {
+        // assert in case we get an underflowed `index` or something
+        assert(_texIndices.size() < index+100'000,
+            "don't generate more than 100,000 texture indices at a time pls");
+        while (index >= _texIndices.size()) {
+            _texIndices.push_back(randInt(_textures.size()));
+        }
+        return _textures[_texIndices[index]];
+    }
+
     void render(Renderer *renderer) {
         int rep = gridSize;
-        float tileSize = renderSize / rep;
+        Vec2 ts = tileSize();
         for (int i = 0; i < rep; ++i) {
             for (int j = 0; j < rep; ++j) {
-                int idxIdx = i*rep + j;
-                while (idxIdx >= _texIndices.size()) {
-                    _texIndices.push_back(randInt(_textures.size()));
-                }
-                renderer->drawImage(_textures[_texIndices[idxIdx]],
-                    800 + tileSize*i, 40 + tileSize*j,
-                    tileSize, tileSize);
+                renderer->drawImage(textureForIndex(i*rep + j),
+                    Vec2{800, 40} + Vec2i{i, j}.to<float>()*tileSize(),
+                    tileSize());
             }
         }
 

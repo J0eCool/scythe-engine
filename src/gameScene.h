@@ -5,13 +5,15 @@
 #include "common.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "texGenScene.h"
 #include "vec.h"
 
 #include <math.h>
 #include <vector>
 
 const Vec2 screenSize { 1920, 1080 };
-const float groundHeight = screenSize.y - 250;
+const float groundHeight = 250;
+const float groundY = screenSize.y - groundHeight;
 
 struct Entity {
     Vec2 _pos;
@@ -102,8 +104,8 @@ struct Player : public Entity {
         }
 
         _pos += dt*_vel;
-        if (_pos.y + _size.y > groundHeight) {
-            _pos.y = groundHeight - _size.y;
+        if (_pos.y + _size.y > groundY) {
+            _pos.y = groundY - _size.y;
             _vel.y = 0;
             _isOnGround = true;
         }
@@ -139,9 +141,17 @@ public:
         _player._input = input;
         _player.update(dt);
     }
-    void render(Renderer* renderer) {
-        renderer->setColor(0.3, 0.2, 0.1, 1);
-        renderer->drawRect(0, groundHeight, screenSize.x, groundHeight);
+    void render(Renderer* renderer, TexGenScene* texScene) {
+        Vec2 tileSize = texScene->tileSize();
+        int w = ceil(screenSize.x/tileSize.x);
+        int h = ceil(groundHeight/tileSize.y);
+        for (int i = 0; i < w; ++i) {
+            for (int j = 0; j < h; ++j) {
+                renderer->drawImage(texScene->textureForIndex(i + j*w),
+                    {i*tileSize.x, j*tileSize.y + groundY},
+                    tileSize);
+            }
+        }
 
         renderer->setColor(1, 1, 0, 1);
         for (auto& bullet : _bullets) {

@@ -132,7 +132,7 @@ struct Program {
             _texScene.render(_renderer);
         } else if (_curScene == &_gameScene) {
             trace("gameScene render");
-            _gameScene.render(_renderer);
+            _gameScene.render(_renderer, &_texScene);
         }
 
         // only trace for one frame per reload to minimize spam
