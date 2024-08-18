@@ -91,6 +91,10 @@ BIN_OP(/)
 BIN_OP(%)
 #undef BIN_OP
 
+template <typename T>
+T dot(Vec2x<T> a, Vec2x<T> b) {
+    return a.dot(b);
+}
 
 using Vec2i = Vec2x<int>;
 using Vec2f = Vec2x<float>;

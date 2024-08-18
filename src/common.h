@@ -1,6 +1,7 @@
 // common.h - this stuff gets included everywhere
 #pragma once
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -157,4 +158,33 @@ T smoothstep(float t, T lo, T hi) {
     // 3x^2 - 2x^3
     float s = t * t * (3 - 2*t);
     return (1-s)*lo + s*hi;
+}
+
+/// @brief The fractional part of some number
+/// @return value between [0.0, 1.0]
+float frac(float t) {
+    return fmodf(t, 1.0f);
+}
+
+template <typename T>
+T slerp(float t, T a, T b) {
+    const float eps = 0.0001; // epsilon; arbitrary small number
+    t = clamp(t, 0.0f, 1.0f);
+    float amag = sqrt(a.v*a.v+a.pos.len2());
+    float bmag = sqrt(b.v*b.v+b.pos.len2());
+    float p = acos(dot(a,b) / (amag*bmag));
+    if (abs(sin(p)) < eps || abs(p) < eps) {
+        return lerp(t, a, b);
+    }
+    if (isnan(p)) {
+        return a;
+    }
+    auto ret = sin((1-t)*p)/sin(p)*a + sin(t*p)/sin(p)*b;
+    if (ret.v <= 0) {
+        return a;
+    }
+    if (ret.pos.x <= 0 || ret.pos.y <= 0) {
+        return a;
+    }
+    return ret;
 }

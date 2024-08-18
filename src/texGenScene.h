@@ -8,6 +8,7 @@
 #include "render_sdl.h"
 #include "vec.h"
 
+#include <alloca.h>
 #include <math.h>
 #include <random>
 #include <vector>
@@ -28,7 +29,7 @@ struct Gradient {
     }
 
     Color sample(float t) {
-        t = clamp(t);
+        t = frac(t);
         // we assume that the steps are sorted
         int i = 0;
         for (; i < steps.size()-1; ++i) {
@@ -40,6 +41,27 @@ struct Gradient {
         return lerp(s, steps[i].color, steps[i+1].color);
     }
 };
+
+// data per grid cell
+struct NoiseSample {
+    float v; // scalar noise value
+    Color color; // RGB color data
+    Vec2f pos; // offset within the grid cell, expected to be in [0, 1)
+};
+NoiseSample operator*(float s, NoiseSample n) {
+    return { s*n.v, s*n.color, s*n.pos };
+}
+NoiseSample operator+(NoiseSample a, NoiseSample b) {
+    return { a.v+b.v, a.color+b.color, a.pos+b.pos };
+}
+// ok this one's pretty dubious... used to let us slerp noise samples
+float dot(NoiseSample a, NoiseSample b) {
+    // I mean in principle this isn't too bad
+    // we're computing a measure of how well-aligned two samples are in a
+    // 3D space of x,y,v
+    return a.v*b.v + dot(a.pos, b.pos);
+}
+
 
 class TexGenScene {
     UI _ui;
@@ -67,6 +89,7 @@ class TexGenScene {
 
         float gradAnimScale = 0;
         float noiseAnimScale = 0;
+        float tileAnimScale = 0;
     } texParams;
 
     int colorIdx = 0; // current gradient step index
@@ -77,6 +100,7 @@ class TexGenScene {
 
     float gradAnimTime;
     float noiseAnimTime;
+    float tileAnimTime;
 
     int randInt(int limit = INT32_MAX) {
         return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
@@ -101,13 +125,6 @@ class TexGenScene {
     float randNormalish() {
         return (randFloat() + randFloat() + randFloat() + randFloat()) / 4;
     }
-
-    // data per grid cell
-    struct NoiseSample {
-        float v; // scalar noise value
-        Color color; // RGB color data
-        Vec2f pos; // offset within the grid cell, expected to be in [0, 1)
-    };
 
     void generateNoise(NoiseSample* noise, int n) {
         for (int y = 0; y < n; ++y) {
@@ -243,7 +260,7 @@ class TexGenScene {
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
                             } else if (texParams.mode == 5) {
-                                c = fmod(c + gradAnimTime, 1.0f);
+                                c += gradAnimTime;
                                 *pixel = texParams.gradient.sample(c);
                             } else {
                                 check(false, "invalid mode");
@@ -347,22 +364,38 @@ public:
         _texIndices.clear();
         // noise width/height
         int n = texParams.noiseSize;
+        std::vector<NoiseSample*> noises; // a list of NxN grids of noise
+
+        // generate the noise grids
         NoiseSample boundary[n*n];
         generateNoise(boundary, n);
-
+        for (int i = 0; i < texParams.numTextures; ++i) {
+            NoiseSample *noise = (NoiseSample*)alloca(n*n*sizeof(NoiseSample));
+            generateNoise(noise, n);
+            if (i == (int)(tileAnimTime/2) % texParams.numTextures) {
+                // actual boundary is lerped between the different tiles'
+                for (int j = 0; j < n*n; ++j) {
+                    float t = 2*abs(fmod(tileAnimTime,2.0)/2 - 0.5);
+                    boundary[j] = slerp(t, noise[j], boundary[j]);
+                }
+            }
+            noises.push_back(noise);
+        }
+        
         for (int i = 0; i < texParams.numTextures; ++i) {
             NoiseSample noise[n*n];
-            generateNoise(noise, n);
+            int idx = (i+(int)tileAnimTime) % texParams.numTextures;
+            NoiseSample *prev = noises[idx];
+            NoiseSample *next = noises[(idx+1) % texParams.numTextures];
+            for (int j = 0; j < n*n; ++j) {
+                noise[j] = lerp(frac(tileAnimTime), prev[j], next[j]);
+            }
             // set the generated noise's boundary to be equal to the boundary noise
             for (int j = 0; j < n; ++j) {
                 /* [x][0]   */ noise[j] = boundary[j];
                 /* [x][n-1] */ noise[j+n*(n-1)] = boundary[j+n];
                 /* [0][y]   */ noise[j*n] = boundary[j*n];
                 /* [n-1][y] */ noise[j*n+n-1] = boundary[j*n+n-1];
-                // noise[j].color.g = noise[j].color.r; noise[j].color.b = noise[j].color.r;
-                // noise[j+n*(n-1)].color.g = noise[j+n*(n-1)].color.r; noise[j+n*(n-1)].color.b = noise[j+n*(n-1)].color.r;
-                // noise[j*n].color.g = noise[j*n].color.r; noise[j*n].color.b = noise[j*n].color.r;
-                // noise[j*n+n-1].color.g = noise[j*n+n-1].color.r; noise[j*n+n-1].color.b = noise[j*n+n-1].color.r;
             }
             SDL_Surface *surface = generateSurface(noise, n, texParams.texSize);
             auto sdl = renderer->sdl();
@@ -376,12 +409,13 @@ public:
     }
 
     bool isAnimating() const {
-        return texParams.gradAnimScale > 0 || texParams.noiseAnimScale > 0;
+        return texParams.gradAnimScale > 0 || texParams.noiseAnimScale > 0 || texParams.tileAnimScale > 0;
     }
 
     void update(float dt, Renderer *renderer) {
         noiseAnimTime += texParams.noiseAnimScale*dt;
         gradAnimTime += texParams.gradAnimScale*dt;
+        tileAnimTime += texParams.tileAnimScale*dt;
         // if we change a param that affects texture appearance, regenerate the textures
         bool changed = isAnimating();
         
@@ -391,6 +425,7 @@ public:
         if (_ui.button("reroll")) {
             noiseAnimTime = 0;
             gradAnimTime = 0;
+            tileAnimTime = 0;
             _textureSeed = _rand_engine();
             changed = true;
         }
@@ -421,6 +456,9 @@ public:
         changed |= uiParam<float>("grad anim", texParams.gradAnimScale,
             texParams.gradAnimScale-0.01, texParams.gradAnimScale+0.01,
             0, 1);
+        changed |= uiParam<float>("tile anim", texParams.tileAnimScale,
+            texParams.tileAnimScale-0.01, texParams.tileAnimScale+0.01,
+            0, 5);
 
         auto &steps = texParams.gradient.steps;
         for (auto step : steps) {
