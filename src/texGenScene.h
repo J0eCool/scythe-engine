@@ -64,6 +64,9 @@ class TexGenScene {
         int noiseScale = 2; // range of the scalar noise values
         int texSize = 32; // NxN pixel size of generated texture
         Gradient gradient;
+
+        float gradAnimScale = 0;
+        float noiseAnimScale = 0;
     } texParams;
 
     int colorIdx = 0; // current gradient step index
@@ -71,6 +74,9 @@ class TexGenScene {
     // params affecting display
     int renderSize = 1024; // NxN size of total display area on screen
     int gridSize = 16; // render an NxN grid of textures
+
+    float gradAnimTime;
+    float noiseAnimTime;
 
     int randInt(int limit = INT32_MAX) {
         return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
@@ -106,13 +112,15 @@ class TexGenScene {
     void generateNoise(NoiseSample* noise, int n) {
         for (int y = 0; y < n; ++y) {
             for (int x = 0; x < n; ++x) {
-                noise[y*n + x] = {
+                NoiseSample &s = noise[y*n + x];
+                s = {
                     randFloat(0.0, 1.0),
                     { randByte(), randByte(), randByte(), 0xff },
                     { randFloat(0.3, 1.0),
                       randFloat(0.3, 1.0),
                     },
                 };
+                s.v = sin(PI*(s.v-0.5) + TAU*noiseAnimTime)/2+0.5f;
             }
         }
     }
@@ -189,6 +197,9 @@ class TexGenScene {
                             }
                         }
 
+                        float a = smoothstep(uv.x, ul_s.v, ur_s.v);
+                        float b = smoothstep(uv.x, bl_s.v, br_s.v);
+                        float c = smoothstep(uv.y, a, b);
                         // given 4 samples and a UV coordinate, interpolate
                         Color *pixel = (Color*)((Uint8*)surface->pixels
                             + j*surface->pitch
@@ -198,12 +209,8 @@ class TexGenScene {
                         } else if (texParams.mode == 1) {
                             Color a = smoothstep(uv.x, ul_s.color, ur_s.color);
                             Color b = smoothstep(uv.x, bl_s.color, br_s.color);
-                            Color c = smoothstep(uv.y, a, b);
-                            *pixel = c;
+                            *pixel = smoothstep(uv.y, a, b);
                         } else {
-                            float a = smoothstep(uv.x, ul_s.v, ur_s.v);
-                            float b = smoothstep(uv.x, bl_s.v, br_s.v);
-                            float c = smoothstep(uv.y, a, b);
                             int cc = 0xff*(texParams.noiseScale*c);
                             if (texParams.mode == 2) {
                                 *pixel = {0, 0, 0, 0xff};
@@ -236,6 +243,7 @@ class TexGenScene {
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
                             } else if (texParams.mode == 5) {
+                                c = fmod(c + gradAnimTime, 1.0f);
                                 *pixel = texParams.gradient.sample(c);
                             } else {
                                 check(false, "invalid mode");
@@ -292,14 +300,15 @@ class TexGenScene {
         bool changed = false;
         _ui.align(160);
         _ui.rect(color, Vec2{32});
+        const int delta = 5;
         changed |= uiParam("R", color.r,
-            Uint8(color.r-1), Uint8(color.r+1),
+            Uint8(color.r-delta), Uint8(color.r+delta),
             Uint8(0), Uint8(255));
         changed |= uiParam("G", color.g,
-            Uint8(color.g-1), Uint8(color.g+1),
+            Uint8(color.g-delta), Uint8(color.g+delta),
             Uint8(0), Uint8(255));
         changed |= uiParam("B", color.b,
-            Uint8(color.b-1), Uint8(color.b+1),
+            Uint8(color.b-delta), Uint8(color.b+delta),
             Uint8(0), Uint8(255));
         return changed;
     }
@@ -361,17 +370,27 @@ public:
             SDL_FreeSurface(surface);
         }
 
-        log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
+        if (!isAnimating()) {
+            log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
+        }
     }
 
-    void update(Renderer *renderer) {
+    bool isAnimating() const {
+        return texParams.gradAnimScale > 0 || texParams.noiseAnimScale > 0;
+    }
+
+    void update(float dt, Renderer *renderer) {
+        noiseAnimTime += texParams.noiseAnimScale*dt;
+        gradAnimTime += texParams.gradAnimScale*dt;
         // if we change a param that affects texture appearance, regenerate the textures
-        bool changed = false;
+        bool changed = isAnimating();
         
         _ui.startUpdate({ 30, 30 });
 
         _ui.line();
         if (_ui.button("reroll")) {
+            noiseAnimTime = 0;
+            gradAnimTime = 0;
             _textureSeed = _rand_engine();
             changed = true;
         }
@@ -395,6 +414,13 @@ public:
         changed |= uiParam("grid size", gridSize,
             gridSize/2, gridSize*2,
             1, 64);
+
+        changed |= uiParam<float>("noise anim", texParams.noiseAnimScale,
+            texParams.noiseAnimScale-0.01, texParams.noiseAnimScale+0.01,
+            0, 1);
+        changed |= uiParam<float>("grad anim", texParams.gradAnimScale,
+            texParams.gradAnimScale-0.01, texParams.gradAnimScale+0.01,
+            0, 1);
 
         auto &steps = texParams.gradient.steps;
         for (auto step : steps) {
@@ -432,8 +458,13 @@ public:
             changed = true;
         }
         changed |= uiParam<float>("pos", step.pos,
-            step.pos-0.02, step.pos+0.02,
+            step.pos-0.01, step.pos+0.01,
             0, 1);
+        _ui.align(40);
+        if (_ui.button("dup")) {
+            // duplicate current color
+            steps.insert(steps.begin()+colorIdx+1, step);
+        }
         changed |= uiColor(step.color);
 
         // maintain sort order of color steps when pos changes

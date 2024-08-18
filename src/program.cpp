@@ -116,7 +116,7 @@ struct Program {
         // update current scene
         if (_curScene == &_texScene) {
             trace("texture generation update");
-            _texScene.update(_renderer);
+            _texScene.update(dt, _renderer);
         } else if (_curScene == &_gameScene) {
             trace("gameScene update");
             _gameScene.update(&_input, dt);
