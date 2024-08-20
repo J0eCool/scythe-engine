@@ -384,7 +384,9 @@ public:
             NoiseSample *prev = noises[idx];
             NoiseSample *next = noises[(idx+1) % texParams.numTextures];
             for (int j = 0; j < n*n; ++j) {
-                noise[j] = lerp(frac(tileAnimTime), prev[j], next[j]);
+                float t = frac(tileAnimTime);
+                t = sin((t-0.5f)*PI)/2+0.5;
+                noise[j] = lerp(t, prev[j], next[j]);
             }
             // set the generated noise's boundary to be equal to the boundary noise
             for (int j = 0; j < n; ++j) {
