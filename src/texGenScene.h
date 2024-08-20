@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "color.h"
 #include "common.h"
 #include "ui.h"
 #include "input_sdl.h"
@@ -9,6 +10,7 @@
 #include "vec.h"
 
 #include <alloca.h>
+#include <fstream>
 #include <math.h>
 #include <random>
 #include <vector>
@@ -41,6 +43,24 @@ struct Gradient {
         return lerp(s, steps[i].color, steps[i+1].color);
     }
 };
+std::ostream& operator<<(std::ostream &stream, Gradient const& gradient) {
+    stream << gradient.steps.size() << ' ';
+    for (auto &step : gradient.steps) {
+        stream << step.color << ' ' << step.pos << '\n';
+    }
+    return stream;
+}
+std::istream& operator>>(std::istream &stream, Gradient &gradient) {
+    int nSteps;
+    stream >> nSteps;
+    gradient.steps.clear();
+    for (int i = 0; i < nSteps; ++i) {
+        GradientStep step;
+        stream >> step.color >> step.pos;
+        gradient.steps.push_back(step);
+    }
+    return stream;
+}
 
 // data per grid cell
 struct NoiseSample {
@@ -62,35 +82,65 @@ float dot(NoiseSample a, NoiseSample b) {
     return a.v*b.v + dot(a.pos, b.pos);
 }
 
+struct TexParams {
+    Uint32 seed;
+
+    // params afffecting generation
+    int noiseSize = 11; // generate an NxN grid of samples
+    int numTextures = 8; // generate N texture variations
+    // `mode` is how to display the noise data
+    //   0 - display each grid cell using the upper-left point's color
+    //   1 - interpolate between the color values of each
+    //   2 - map noise value onto a color gradient
+    //   3 - map noise value onto a grayscale gradient
+    //   4 - same as mode 3, but color-coded per tile variant
+    //   5 - gradient-mapped color values (soon the default)
+    int mode = 5;
+    int noiseScale = 2; // range of the scalar noise values
+    int texSize = 32; // NxN pixel size of generated texture
+    Gradient gradient;
+
+    float gradAnimScale = 0;
+    float noiseAnimScale = 0;
+    float tileAnimScale = 0;
+};
+std::ostream& operator<<(std::ostream &stream, TexParams const& params) {
+    return stream
+        << params.seed << '\n'
+        << params.noiseSize << '\n'
+        << params.numTextures << '\n'
+        << params.mode << '\n'
+        << params.noiseScale << '\n'
+        << params.texSize << '\n'
+        << params.gradient << '\n'
+        << params.gradAnimScale << '\n'
+        << params.noiseAnimScale << '\n'
+        << params.tileAnimScale << '\n'
+        ;
+}
+std::istream& operator>>(std::istream &stream, TexParams &params) {
+    return stream
+        >> params.seed
+        >> params.noiseSize
+        >> params.numTextures
+        >> params.mode
+        >> params.noiseScale
+        >> params.texSize
+        >> params.gradient
+        >> params.gradAnimScale
+        >> params.noiseAnimScale
+        >> params.tileAnimScale
+        ;
+}
 
 class TexGenScene {
     UI _ui;
     std::ranlux24_base _rand_engine;
     // latest seed used to generate textures
-    Uint32 _textureSeed;
     std::vector<SDL_Texture*> _textures;
     std::vector<int> _texIndices;
 
-    struct {
-        // params afffecting generation
-        int noiseSize = 11; // generate an NxN grid of samples
-        int numTextures = 8; // generate N texture variations
-        // `mode` is how to display the noise data
-        //   0 - display each grid cell using the upper-left point's color
-        //   1 - interpolate between the color values of each
-        //   2 - map noise value onto a color gradient
-        //   3 - map noise value onto a grayscale gradient
-        //   4 - same as mode 3, but color-coded per tile variant
-        //   5 - gradient-mapped color values (soon the default)
-        int mode = 5;
-        int noiseScale = 2; // range of the scalar noise values
-        int texSize = 32; // NxN pixel size of generated texture
-        Gradient gradient;
-
-        float gradAnimScale = 0;
-        float noiseAnimScale = 0;
-        float tileAnimScale = 0;
-    } texParams;
+    TexParams texParams;
 
     int colorIdx = 0; // current gradient step index
 
@@ -102,6 +152,28 @@ class TexGenScene {
     float noiseAnimTime;
     float tileAnimTime;
 
+public:
+    TexGenScene(Allocator *alloc, Input *input) : _ui(alloc, input) {}
+
+    ~TexGenScene() {
+        for (auto tex : _textures) {
+            SDL_DestroyTexture(tex);
+        }
+    }
+
+    void onLoad() {
+        // random_device seems to give a consistent value in dll, so offset by
+        // ticks elapsed since program start to get new results on each reload
+        std::random_device r;
+        texParams.seed = r() + SDL_GetTicks();
+        _rand_engine = std::ranlux24_base(texParams.seed);
+    }
+
+    void onUnload() {
+        _ui.unload();
+    }
+
+private:
     int randInt(int limit = INT32_MAX) {
         return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
     }
@@ -274,88 +346,12 @@ class TexGenScene {
         return surface;
     }
 
-    template <typename T>
-    bool uiParam(const char* text, T &val, T dec, T inc, T lo, T hi) {
-        // right-align the labels :O
-        _ui.align(240-Renderer::fontSize.x*(strlen(text)+2));
-        _ui.labels(text, ":");
-        T set = val;
-        if (_ui.button("<")) {
-            set = max(dec, lo);
-        }
-        _ui.label(val);
-        if (_ui.button(">")) {
-            set = min(inc, hi);
-        }
-        _ui.align(400);
-        _ui.slider(set, lo, hi);        
-        _ui.line();
-        if (set != val) {
-            val = set;
-            return true;
-        }
-        return false;
-    }
-
-    /// @brief UI Widget that toggles a boolean variable
-    /// @param option the option to display and update
-    /// @param ifOn text to show when `option` is `true`
-    /// @param ifOff text when `option` is `false`
-    /// @return `true` when clicked (for callback purposes)
-    bool uiToggle(bool &option, const char* ifOn, const char* ifOff) {
-        if (_ui.button(option ? ifOn : ifOff)) {
-            option = !option;
-            return true;
-        }
-        return false;
-    }
-
-    /// @brief bootleg color picker
-    /// @param color color to edit
-    /// @return `true` when modified
-    bool uiColor(Color &color) {
-        bool changed = false;
-        _ui.align(160);
-        _ui.rect(color, Vec2{32});
-        const int delta = 5;
-        changed |= uiParam("R", color.r,
-            Uint8(color.r-delta), Uint8(color.r+delta),
-            Uint8(0), Uint8(255));
-        changed |= uiParam("G", color.g,
-            Uint8(color.g-delta), Uint8(color.g+delta),
-            Uint8(0), Uint8(255));
-        changed |= uiParam("B", color.b,
-            Uint8(color.b-delta), Uint8(color.b+delta),
-            Uint8(0), Uint8(255));
-        return changed;
-    }
-
 public:
-    TexGenScene(Allocator *alloc, Input *input) : _ui(alloc, input) {}
-
-    ~TexGenScene() {
-        for (auto tex : _textures) {
-            SDL_DestroyTexture(tex);
-        }
-    }
-
-    void onLoad() {
-        // random_device seems to give a consistent value in dll, so offset by
-        // ticks elapsed since program start to get new results on each reload
-        std::random_device r;
-        _textureSeed = r() + SDL_GetTicks();
-        _rand_engine = std::ranlux24_base(_textureSeed);
-    }
-
-    void onUnload() {
-        _ui.unload();
-    }
-
     void generateTextures(Renderer *renderer) {
         Tracer("Game::generateTextures");
         Timer timer;
 
-        _rand_engine.seed(_textureSeed);
+        _rand_engine.seed(texParams.seed);
 
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
@@ -421,14 +417,32 @@ public:
         
         _ui.startUpdate({ 30, 30 });
 
-        _ui.line();
         if (_ui.button("reroll")) {
             noiseAnimTime = 0;
             gradAnimTime = 0;
             tileAnimTime = 0;
-            _textureSeed = _rand_engine();
+            texParams.seed = _rand_engine();
             changed = true;
         }
+        const char* saveFile = "../data/texture.dat";
+        if (_ui.button("save")) {
+            std::ofstream file;
+            file.open(saveFile);
+            file << texParams;
+            file.close();
+            log("params saved to file");
+        }
+        if (_ui.button("load")) {
+            std::ifstream file;
+            file.open(saveFile);
+            if (check(file.is_open(), "could not open file")) {
+                file >> texParams;
+                file.close();
+                log("params loaded from file");
+            }
+            changed = true;
+        }
+        _ui.line();
 
         changed |= uiParam("noise size", texParams.noiseSize,
             texParams.noiseSize-1, texParams.noiseSize+1,
@@ -520,6 +534,64 @@ public:
         }
     }
 
+private:
+    template <typename T>
+    bool uiParam(const char* text, T &val, T dec, T inc, T lo, T hi) {
+        // right-align the labels :O
+        _ui.align(240-Renderer::fontSize.x*(strlen(text)+2));
+        _ui.labels(text, ":");
+        T set = val;
+        if (_ui.button("<")) {
+            set = max(dec, lo);
+        }
+        _ui.label(val);
+        if (_ui.button(">")) {
+            set = min(inc, hi);
+        }
+        _ui.align(400);
+        _ui.slider(set, lo, hi);        
+        _ui.line();
+        if (set != val) {
+            val = set;
+            return true;
+        }
+        return false;
+    }
+
+    /// @brief UI Widget that toggles a boolean variable
+    /// @param option the option to display and update
+    /// @param ifOn text to show when `option` is `true`
+    /// @param ifOff text when `option` is `false`
+    /// @return `true` when clicked (for callback purposes)
+    bool uiToggle(bool &option, const char* ifOn, const char* ifOff) {
+        if (_ui.button(option ? ifOn : ifOff)) {
+            option = !option;
+            return true;
+        }
+        return false;
+    }
+
+    /// @brief bootleg color picker
+    /// @param color color to edit
+    /// @return `true` when modified
+    bool uiColor(Color &color) {
+        bool changed = false;
+        _ui.align(160);
+        _ui.rect(color, Vec2{32});
+        const int delta = 5;
+        changed |= uiParam("R", color.r,
+            Uint8(color.r-delta), Uint8(color.r+delta),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("G", color.g,
+            Uint8(color.g-delta), Uint8(color.g+delta),
+            Uint8(0), Uint8(255));
+        changed |= uiParam("B", color.b,
+            Uint8(color.b-delta), Uint8(color.b+delta),
+            Uint8(0), Uint8(255));
+        return changed;
+    }
+
+public:
     Vec2 tileSize() const {
         return Vec2{(float)renderSize} / gridSize;
     }

@@ -15,6 +15,7 @@
 // TODO: should probably this to the file watching API before this list gets
 // too big, at 8 files watched I can already see 0.5% additional CPU usage :(
 std::vector<const char*> filesToScan {
+    "../src/color.h",
     "../src/common.h",
     "../src/input_sdl.h",
     "../src/gameScene.h",
