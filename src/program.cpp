@@ -28,7 +28,7 @@ struct Program {
     Program(Allocator* allocator) : _allocator(allocator), _texScene(_allocator, &_input) {
         _curScene = &_texScene;
         _window = SDL_CreateWindow(
-            "This Game Is My Second Chance",
+            "I Heard You Liked Video Games",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             screenSize.x, screenSize.y,
             SDL_WINDOW_SHOWN);

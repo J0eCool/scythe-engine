@@ -332,7 +332,7 @@ private:
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
                             } else if (texParams.mode == 5) {
-                                c += gradAnimTime;
+                                c = abs(fmod(c+gradAnimTime,2.0f)-1);
                                 *pixel = texParams.gradient.sample(c);
                             } else {
                                 check(false, "invalid mode");
