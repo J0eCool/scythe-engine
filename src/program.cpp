@@ -21,11 +21,14 @@ struct Program {
     float t = 0.0;
     bool _quit = false;
 
+    UI _menu;
     GameScene _gameScene;
     TexGenScene _texScene;
     void* _curScene;
 
-    Program(Allocator* allocator) : _allocator(allocator), _texScene(_allocator, &_input) {
+    Program(Allocator* allocator)
+            : _allocator(allocator), _texScene(_allocator, &_input),
+            _menu(allocator, &_input) {
         _curScene = &_texScene;
         _window = SDL_CreateWindow(
             "I Heard You Liked Video Games",
@@ -106,10 +109,12 @@ struct Program {
         }
 
         // change current scene
-        if (_input.didPress("1")) {
+        _menu.startUpdate({30, 30});
+        if (_menu.button("texgen")) {
             _curScene = &_texScene;
         }
-        if (_input.didPress("2")) {
+        _menu.line();
+        if (_menu.button("game")) {
             _curScene = &_gameScene;
         }
 
@@ -134,6 +139,8 @@ struct Program {
             trace("gameScene render");
             _gameScene.render(_renderer, &_texScene);
         }
+
+        _menu.render(_renderer);
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol

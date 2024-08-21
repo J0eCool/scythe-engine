@@ -331,7 +331,7 @@ private:
                                 }
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
-                            } else if (texParams.mode == 5) {
+                            } else if (texParams.mode ==                            5) {
                                 c = abs(fmod(c+gradAnimTime,2.0f)-1);
                                 *pixel = texParams.gradient.sample(c);
                             } else {
@@ -417,8 +417,9 @@ public:
         // if we change a param that affects texture appearance, regenerate the textures
         bool changed = isAnimating();
         
-        _ui.startUpdate({ 30, 30 });
+        _ui.startUpdate({ 90, 30 });
 
+        _ui.align(180);
         if (_ui.button("reroll")) {
             noiseAnimTime = 0;
             gradAnimTime = 0;
