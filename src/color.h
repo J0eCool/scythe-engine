@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <fstream>
+#include <vector>
 
 struct Color {
     Uint8 r, g, b, a;
@@ -58,7 +59,6 @@ Color hsvColor(float h, float s, float v) {
     rgb.b += m;
     return rgb;
 }
-
 std::ostream& operator<<(std::ostream &stream, Color const& c) {
     return stream << (int32_t)c.r << ' ' << (int32_t)c.g << ' ' << (int32_t)c.b << ' ' << (int32_t)c.a;
 }
@@ -69,5 +69,50 @@ std::istream& operator>>(std::istream &stream, Color &c) {
     c.g = g;
     c.b = b;
     c.a = a;
+    return stream;
+}
+
+struct GradientStep {
+    Color color;
+    float pos; // [0, 1], what value of the gradient is set to this color
+};
+
+struct Gradient {
+    std::vector<GradientStep> steps;
+
+    Gradient() {
+        steps.push_back({Color::black, 0});
+        steps.push_back({Color::white, 1});
+    }
+
+    Color sample(float t) {
+        t = frac(t);
+        // we assume that the steps are sorted
+        int i = 0;
+        for (; i < steps.size()-1; ++i) {
+            if (steps[i+1].pos >= t) {
+                break;
+            }
+        }
+        float s = (t-steps[i].pos) / (steps[i+1].pos-steps[i].pos);
+        return lerp(s, steps[i].color, steps[i+1].color);
+    }
+};
+std::ostream& operator<<(std::ostream &stream, Gradient const& gradient) {
+    stream << gradient.steps.size() << ' ';
+    for (auto &step : gradient.steps) {
+        stream << step.color << ' ' << step.pos << '\n';
+    }
+    return stream;
+}
+std::istream& operator>>(std::istream &stream, Gradient &gradient) {
+    int nSteps;
+    stream >> nSteps;
+    gradient.steps.clear();
+    for (int i = 0; i < nSteps; ++i) {
+        GradientStep step;
+        stream >> step.color >> step.pos;
+        gradient.steps.push_back(step);
+    }
     return stream;
 }
