@@ -18,15 +18,40 @@ struct ButtonState {
 class Input {
     Vec2 _mousePos;
 
-    // name -> state mapping for Actions
+    // button name -> state mapping for Actions
     std::map<std::string, ButtonState> _buttons;
-    // keycode -> Action name
+    enum InputKind {
+        Key,
+        MouseButton,
+        ControllerButton,
+    };
+    struct Axis {
+        float value;
+        InputKind lastSet;
+    };
+    // axis name -> value per input axis
+    std::map<std::string, Axis> _axes;
+
+    // keycode -> button name
     std::map<SDL_Keycode, std::string> _keybinds;
-    // mouse button -> Action name
-    std::map<SDL_Keycode, std::string> _mousebinds;
+    // mouse button -> button name
+    std::map<Uint8, std::string> _mousebinds;
+    // controller button -> button name
+    std::map<Uint8, std::string> _ctrlbinds;
+
+    struct PairAxis {
+        std::string neg, pos;
+    };
+    // axis name -> pair of inputs (keys or controllers)
+    std::map<std::string, PairAxis> _pairaxes;
+    // controller axis -> axis name
+    std::map<Uint8, std::string> _ctrlaxes;
+
 
     int _backspaces;
     std::string _appendText;
+    bool _usingController = false;
+    SDL_GameController *_controller = nullptr;
 
 public:
     // call once per frame
@@ -90,7 +115,42 @@ public:
                 }
                 break;
             }
+            case SDL_CONTROLLERBUTTONDOWN:
+            case SDL_CONTROLLERBUTTONUP: {
+                bool isPress = event.type == SDL_CONTROLLERBUTTONDOWN;
+                auto btn = event.cbutton.button;
+                log("o hey we %s button %d",
+                    isPress ? "pushin" : "releasin",
+                    btn);
+                auto it = _ctrlbinds.find(btn);
+                if (it != _ctrlbinds.end()) {
+                    _buttons[it->second].pressed = isPress;
+                }
+                break;
             }
+            }
+        }
+
+        for (auto &axis: _axes) {
+            auto pair = _pairaxes[axis.first];
+            axis.second.value = isHeld(pair.pos) - isHeld(pair.neg);
+        }
+    }
+
+    // clear button mappings
+    void resetBindings() {
+        _buttons.clear();
+        _keybinds.clear();
+        _mousebinds.clear();
+        _ctrlbinds.clear();
+
+        // reset previous controller state if any
+        if (_controller) {
+            SDL_GameControllerClose(_controller);
+            _controller = nullptr;
+        }
+        if (SDL_NumJoysticks() > 0) {
+            _controller = SDL_GameControllerOpen(0);
         }
     }
 
@@ -110,6 +170,14 @@ public:
             _buttons[name] = {false, false};
         }
     }
+    void addControllerBind(std::string name, int ctrlButton) {
+        Tracer trace((std::string("Input::addControllerBind-")+name).c_str());
+        _ctrlbinds[ctrlButton] = name;
+        if (_buttons.find(name) == _buttons.end()) {
+            trace("adding to _buttons");
+            _buttons[name] = {false, false};
+        }
+    }
 
     Vec2 getMousePos() const {
         return _mousePos;
@@ -117,7 +185,8 @@ public:
 
     ButtonState getButtonState(std::string name) const {
         Tracer((std::string("Input::getButtonState-")+name).c_str());
-        assert(_buttons.find(name) != _buttons.end(), "Unknown button name: \"%s\"\n", name.c_str());
+        assert(_buttons.find(name) != _buttons.end(),
+            "Unknown button name: \"%s\"", name.c_str());
         return _buttons.at(name);
     }
 
@@ -144,7 +213,19 @@ public:
         return !state.pressed && state.lastPressed;
     }
 
-    float getAxis(std::string negName, std::string posName) const {
-        return isHeld(posName) - isHeld(negName);
+    void addAxisPair(std::string axis, std::string neg, std::string pos) {
+        assert(_buttons.find(neg) != _buttons.end(),
+            "Unknown button: \"%s\"", neg.c_str());
+        assert(_buttons.find(pos) != _buttons.end(),
+            "Unknown button: \"%s\"", pos.c_str());
+        _pairaxes[axis] = { neg, pos };
+        if (_axes.find(axis) == _axes.end()) {
+            _axes[axis] = { 0, Key };
+        }
+    }
+    float getAxis(std::string name) const {
+        assert(_axes.find(name) != _axes.end(),
+            "Unknown axis name: \"%s\"", name.c_str());
+        return _axes.at(name).value;
     }
 };

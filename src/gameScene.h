@@ -77,7 +77,7 @@ struct Player : public Entity {
         const float gravity = 2000;
         float jumpHeight = 150;
 
-        float inDir = _input->getAxis("left", "right");
+        float inDir = _input->getAxis("horizontal");
         if (inDir > 0) {
             _facingRight = true;
         } else if (inDir < 0) {

@@ -61,9 +61,9 @@ struct Program {
     void onLoad() {
         _texScene.onLoad();
 
+        _input.resetBindings();
+
         _input.addKeybind("quit", SDLK_ESCAPE);
-        _input.addKeybind("reload", SDLK_r);
-        _input.addKeybind("logging", SDLK_l);
 
         _input.addKeybind("left", SDLK_a);
         _input.addKeybind("right", SDLK_d);
@@ -71,6 +71,13 @@ struct Program {
         _input.addKeybind("down", SDLK_s);
         _input.addKeybind("jump", SDLK_k);
         _input.addKeybind("shoot", SDLK_j);
+        _input.addAxisPair("horizontal", "left", "right");
+        _input.addAxisPair("vertical", "up", "down");
+
+        _input.addControllerBind("jump", SDL_CONTROLLER_BUTTON_A);
+        _input.addControllerBind("shoot", SDL_CONTROLLER_BUTTON_X);
+        _input.addControllerBind("left", SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+        _input.addControllerBind("right", SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
 
         _input.addKeybind("1", SDLK_1);
         _input.addKeybind("2", SDLK_2);
@@ -78,8 +85,8 @@ struct Program {
         _input.addKeybind("4", SDLK_4);
         _input.addKeybind("5", SDLK_5);
 
-        _input.addMouseBind("click", 1);
-        _input.addMouseBind("rclick", 3);
+        _input.addMouseBind("click", SDL_BUTTON_LEFT);
+        _input.addMouseBind("rclick", SDL_BUTTON_RIGHT);
 
         _texScene.generateTextures(_renderer);
     }
@@ -100,6 +107,10 @@ struct Program {
         trace("stack addr: %x (val=%d)", &stackval, stackval);
 
         _input.update();
+
+        if (_input.didPress("1")) {
+            log("njoy: %d", SDL_NumJoysticks());
+        }
 
         trace("input handling");
         if (_input.didPress("quit")) {
