@@ -24,6 +24,7 @@ class Input {
         Key,
         MouseButton,
         ControllerButton,
+        ControllerAxis,
     };
     struct Axis {
         float value;
@@ -100,11 +101,13 @@ public:
                 if (it != _keybinds.end()) {
                     _buttons[it->second].pressed = isPress;
                 }
+                _usingController = false;
                 break;
             }
-            case SDL_MOUSEMOTION:
+            case SDL_MOUSEMOTION: {
                 _mousePos = Vec2i { event.motion.x, event.motion.y }.to<float>();
                 break;
+            }
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP: {
                 bool isPress = event.type == SDL_MOUSEBUTTONDOWN;
@@ -113,6 +116,19 @@ public:
                 if (it != _mousebinds.end()) {
                     _buttons[it->second].pressed = isPress;
                 }
+                break;
+            }
+            case SDL_CONTROLLERAXISMOTION: {
+                auto it = _ctrlaxes.find(event.caxis.axis);
+                if (it != _ctrlaxes.end()) {
+                    float v = (float)event.caxis.value / __INT16_MAX__;
+                    const float deadzone = 0.1f;
+                    if (abs(v) < deadzone) {
+                        v = 0;
+                    }
+                    _axes[it->second].value = v;
+                }
+                _usingController = true;
                 break;
             }
             case SDL_CONTROLLERBUTTONDOWN:
@@ -126,14 +142,18 @@ public:
                 if (it != _ctrlbinds.end()) {
                     _buttons[it->second].pressed = isPress;
                 }
+                _usingController = false;
                 break;
             }
             }
         }
 
-        for (auto &axis: _axes) {
-            auto pair = _pairaxes[axis.first];
-            axis.second.value = isHeld(pair.pos) - isHeld(pair.neg);
+        if (!_usingController) {
+            for (auto &axis: _axes) {
+                auto pair = _pairaxes[axis.first];
+                float v = isHeld(pair.pos) - isHeld(pair.neg);
+                axis.second.value = v;
+            }
         }
     }
 
@@ -221,6 +241,12 @@ public:
         _pairaxes[axis] = { neg, pos };
         if (_axes.find(axis) == _axes.end()) {
             _axes[axis] = { 0, Key };
+        }
+    }
+    void addControllerAxis(std::string name, Uint8 axis) {
+        _ctrlaxes[axis] = name;
+        if (_axes.find(name) == _axes.end()) {
+            _axes[name] = { 0, Key };
         }
     }
     float getAxis(std::string name) const {

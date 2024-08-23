@@ -78,6 +78,8 @@ struct Program {
         _input.addControllerBind("shoot", SDL_CONTROLLER_BUTTON_X);
         _input.addControllerBind("left", SDL_CONTROLLER_BUTTON_DPAD_LEFT);
         _input.addControllerBind("right", SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+        _input.addControllerAxis("horizontal", SDL_CONTROLLER_AXIS_LEFTX);
+        _input.addControllerAxis("vertical", SDL_CONTROLLER_AXIS_LEFTY);
 
         _input.addKeybind("1", SDLK_1);
         _input.addKeybind("2", SDLK_2);
