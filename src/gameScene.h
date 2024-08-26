@@ -160,5 +160,8 @@ public:
 
         renderer->setColor(0, 1, 1, 1);
         _player.render(renderer);
+
+        renderer->drawText("did everything go", 1100, 145);
+        renderer->drawText("better than expected?", 1140, 190);
     }
 };

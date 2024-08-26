@@ -2,6 +2,7 @@
 #include "gameScene.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "rpgScene.h"
 #include "texGenScene.h"
 #include "ui.h"
 #include "vec.h"
@@ -24,10 +25,13 @@ struct Program {
     UI _menu;
     GameScene _gameScene;
     TexGenScene _texScene;
+    RpgScene _rpgScene;
     void* _curScene;
 
-    Program(Allocator* allocator)
-            : _allocator(allocator), _texScene(_allocator, &_input),
+    Program(Allocator* allocator) :
+            _allocator(allocator),
+            _texScene(_allocator, &_input),
+            _rpgScene(_allocator, &_input),
             _menu(allocator, &_input) {
         _curScene = &_texScene;
         _window = SDL_CreateWindow(
@@ -130,6 +134,10 @@ struct Program {
         if (_menu.button("game")) {
             _curScene = &_gameScene;
         }
+        _menu.line();
+        if (_menu.button("rpg")) {
+            _curScene = &_rpgScene;
+        }
 
         // update current scene
         if (_curScene == &_texScene) {
@@ -138,6 +146,9 @@ struct Program {
         } else if (_curScene == &_gameScene) {
             trace("gameScene update");
             _gameScene.update(&_input, dt);
+        } else if (_curScene == &_rpgScene) {
+            trace("rpgScene update");
+            _rpgScene.update(dt);
         }
 
     }
@@ -151,6 +162,9 @@ struct Program {
         } else if (_curScene == &_gameScene) {
             trace("gameScene render");
             _gameScene.render(_renderer, &_texScene);
+        } else if (_curScene == &_rpgScene) {
+            trace("rpgScene render");
+            _rpgScene.render(_renderer);
         }
 
         _menu.render(_renderer);

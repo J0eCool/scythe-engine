@@ -135,9 +135,6 @@ public:
             case SDL_CONTROLLERBUTTONUP: {
                 bool isPress = event.type == SDL_CONTROLLERBUTTONDOWN;
                 auto btn = event.cbutton.button;
-                log("o hey we %s button %d",
-                    isPress ? "pushin" : "releasin",
-                    btn);
                 auto it = _ctrlbinds.find(btn);
                 if (it != _ctrlbinds.end()) {
                     _buttons[it->second].pressed = isPress;
