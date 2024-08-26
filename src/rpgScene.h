@@ -5,6 +5,7 @@
 #include "common.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "scene.h"
 #include "ui.h"
 #include "vec.h"
 
@@ -20,7 +21,7 @@ struct Fighter {
     float action;
 };
 
-class RpgScene {
+class RpgScene : public Scene {
     Allocator* _allocator;
     Input* _input;
     UI _ui;
@@ -35,7 +36,7 @@ public:
         initBattle();
     }
 
-    void update(float dt) {
+    void update(float dt) override {
         _ui.startUpdate({ 240, 120 });
         _ui.label("Player");
         _ui.line();
@@ -69,7 +70,7 @@ public:
             initBattle();
         }
     }
-    void render(Renderer* renderer) {
+    void render(Renderer* renderer) override {
         _ui.render(renderer);
     }
 

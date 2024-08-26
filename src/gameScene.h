@@ -5,6 +5,7 @@
 #include "common.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "scene.h"
 #include "texGenScene.h"
 #include "vec.h"
 
@@ -112,13 +113,20 @@ struct Player : public Entity {
     }
 };
 
-class GameScene {
+class GameScene : public Scene {
     Player _player;
     std::vector<Bullet> _bullets;
 
+    Input* _input;
+    TexGenScene* _texScene;
+
 public:
-    void update(Input* input, float dt) {
-        if (input->didPress("shoot")) {
+    GameScene(Input* input, TexGenScene* texScene) :
+        _input(input), _texScene(texScene) {
+    }
+
+    void update(float dt) override {
+        if (_input->didPress("shoot")) {
             Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
             Bullet bullet {_player._pos, vel, 1.5};
             _bullets.push_back(bullet);
@@ -138,16 +146,17 @@ public:
             _bullets.pop_back();
         }
 
-        _player._input = input;
+        _player._input = _input;
         _player.update(dt);
     }
-    void render(Renderer* renderer, TexGenScene* texScene) {
-        Vec2 tileSize = texScene->tileSize();
+
+    void render(Renderer* renderer) override {
+        Vec2 tileSize = _texScene->tileSize();
         int w = ceil(screenSize.x/tileSize.x);
         int h = ceil(groundHeight/tileSize.y);
         for (int i = 0; i < w; ++i) {
             for (int j = 0; j < h; ++j) {
-                renderer->drawImage(texScene->textureForIndex(i + j*w),
+                renderer->drawImage(_texScene->textureForIndex(i + j*w),
                     {i*tileSize.x, j*tileSize.y + groundY},
                     tileSize);
             }

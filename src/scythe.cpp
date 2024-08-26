@@ -23,6 +23,7 @@ std::vector<const char*> filesToScan {
     "../src/gameScene.h",
     "../src/render_sdl.h",
     "../src/rpgScene.h",
+    "../src/scene.h",
     "../src/texGen.h",
     "../src/texGenScene.h",
     "../src/ui.h",

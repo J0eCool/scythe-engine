@@ -3,6 +3,7 @@
 #include "input_sdl.h"
 #include "render_sdl.h"
 #include "rpgScene.h"
+#include "scene.h"
 #include "texGenScene.h"
 #include "ui.h"
 #include "vec.h"
@@ -26,11 +27,12 @@ struct Program {
     GameScene _gameScene;
     TexGenScene _texScene;
     RpgScene _rpgScene;
-    void* _curScene;
+    Scene* _curScene;
 
     Program(Allocator* allocator) :
             _allocator(allocator),
             _texScene(_allocator, &_input),
+            _gameScene(&_input, &_texScene),
             _rpgScene(_allocator, &_input),
             _menu(allocator, &_input) {
         _curScene = &_texScene;
@@ -127,46 +129,25 @@ struct Program {
 
         // change current scene
         _menu.startUpdate({30, 30});
-        if (_menu.button("texgen")) {
-            _curScene = &_texScene;
-        }
-        _menu.line();
-        if (_menu.button("game")) {
-            _curScene = &_gameScene;
-        }
-        _menu.line();
-        if (_menu.button("rpg")) {
-            _curScene = &_rpgScene;
+        std::vector<std::pair<const char*, Scene*>> scenes {
+            {"texgen", &_texScene},
+            {"game", &_gameScene},
+            {"rpg", &_rpgScene},
+        };
+        for (auto &item : scenes) {
+            _menu.line();
+            if (_menu.button(item.first)) {
+                _curScene = item.second;
+            }
         }
 
         // update current scene
-        if (_curScene == &_texScene) {
-            trace("texture generation update");
-            _texScene.update(dt, _renderer);
-        } else if (_curScene == &_gameScene) {
-            trace("gameScene update");
-            _gameScene.update(&_input, dt);
-        } else if (_curScene == &_rpgScene) {
-            trace("rpgScene update");
-            _rpgScene.update(dt);
-        }
-
+        _curScene->update(dt);
     }
 
     void render() {
         Tracer trace("Game::render");
-
-        if (_curScene == &_texScene) {
-            trace("texture generation render");
-            _texScene.render(_renderer);
-        } else if (_curScene == &_gameScene) {
-            trace("gameScene render");
-            _gameScene.render(_renderer, &_texScene);
-        } else if (_curScene == &_rpgScene) {
-            trace("rpgScene render");
-            _rpgScene.render(_renderer);
-        }
-
+        _curScene->render(_renderer);
         _menu.render(_renderer);
 
         // only trace for one frame per reload to minimize spam

@@ -20,6 +20,7 @@ class Input {
 
     // button name -> state mapping for Actions
     std::map<std::string, ButtonState> _buttons;
+
     enum InputKind {
         Key,
         MouseButton,

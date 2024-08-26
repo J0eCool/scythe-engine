@@ -157,6 +157,7 @@ struct UIElement {
 };
 
 class UI {
+    ///FIXME: we don't actually use or need this
     Allocator* _allocator;
     Input* _input;
     Vec2 _padding { 10 }; // space between elements

@@ -18,7 +18,7 @@
 
 #include <SDL2/SDL.h>
 
-class TexGenScene {
+class TexGenScene : public Scene {
     UI _ui;
     std::ranlux24_base _rand_engine;
     // latest seed used to generate textures
@@ -37,8 +37,11 @@ class TexGenScene {
     float noiseAnimTime;
     float tileAnimTime;
 
+    bool _shouldGenerate;
+
 public:
-    TexGenScene(Allocator *alloc, Input *input) : _ui(alloc, input) {}
+    TexGenScene(Allocator *alloc, Input *input) : _ui(alloc, input) {
+    }
 
     ~TexGenScene() {
         for (auto tex : _textures) {
@@ -52,6 +55,7 @@ public:
         std::random_device r;
         texParams.seed = r() + SDL_GetTicks();
         _rand_engine = std::ranlux24_base(texParams.seed);
+        _shouldGenerate = true;
     }
 
     void onUnload() {
@@ -216,7 +220,7 @@ private:
                                 }
                                 const float r = 360.0f * (9/43.0f);
                                 *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
-                            } else if (texParams.mode ==                            5) {
+                            } else if (texParams.mode == 5) {
                                 c = abs(fmod(c+gradAnimTime,2.0f)-1);
                                 *pixel = texParams.gradient.sample(c);
                             } else {
@@ -288,6 +292,7 @@ public:
 
         if (!isAnimating()) {
             log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
+            // log("hey let's fuck it up");
         }
     }
 
@@ -295,12 +300,12 @@ public:
         return texParams.gradAnimScale > 0 || texParams.noiseAnimScale > 0 || texParams.tileAnimScale > 0;
     }
 
-    void update(float dt, Renderer *renderer) {
+    void update(float dt) override {
         noiseAnimTime += texParams.noiseAnimScale*dt;
         gradAnimTime += texParams.gradAnimScale*dt;
         tileAnimTime += texParams.tileAnimScale*dt;
         // if we change a param that affects texture appearance, regenerate the textures
-        bool changed = isAnimating();
+        _shouldGenerate = isAnimating();
         
         _ui.startUpdate({ 90, 30 });
 
@@ -310,7 +315,7 @@ public:
             gradAnimTime = 0;
             tileAnimTime = 0;
             texParams.seed = _rand_engine();
-            changed = true;
+            _shouldGenerate = true;
         }
         const char* saveFile = "../data/texture.dat";
         if (_ui.button("save")) {
@@ -328,37 +333,37 @@ public:
                 file.close();
                 log("params loaded from file");
             }
-            changed = true;
+            _shouldGenerate = true;
         }
         _ui.line();
 
-        changed |= uiParam("noise size", texParams.noiseSize,
+        _shouldGenerate |= uiParam("noise size", texParams.noiseSize,
             texParams.noiseSize-1, texParams.noiseSize+1,
             3, texParams.texSize);
-        changed |= uiParam("num textures", texParams.numTextures,
+        _shouldGenerate |= uiParam("num textures", texParams.numTextures,
             texParams.numTextures-1, texParams.numTextures+1,
             1, 64);
         const int nModes = 6;
-        changed |= uiParam("mode", texParams.mode,
+        _shouldGenerate |= uiParam("mode", texParams.mode,
             (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes,
             0, nModes-1);
-        changed |= uiParam("noise scale", texParams.noiseScale,
+        _shouldGenerate |= uiParam("noise scale", texParams.noiseScale,
             texParams.noiseScale-1, texParams.noiseScale+1,
             1, 10);
-        changed |= uiParam("tex size", texParams.texSize,
+        _shouldGenerate |= uiParam("tex size", texParams.texSize,
             texParams.texSize/2, texParams.texSize*2,
             4, 512);
-        changed |= uiParam("grid size", gridSize,
+        _shouldGenerate |= uiParam("grid size", gridSize,
             gridSize/2, gridSize*2,
             1, 64);
 
-        changed |= uiParam<float>("noise anim", texParams.noiseAnimScale,
+        _shouldGenerate |= uiParam<float>("noise anim", texParams.noiseAnimScale,
             texParams.noiseAnimScale-0.01, texParams.noiseAnimScale+0.01,
             0, 1);
-        changed |= uiParam<float>("grad anim", texParams.gradAnimScale,
+        _shouldGenerate |= uiParam<float>("grad anim", texParams.gradAnimScale,
             texParams.gradAnimScale-0.01, texParams.gradAnimScale+0.01,
             0, 1);
-        changed |= uiParam<float>("tile anim", texParams.tileAnimScale,
+        _shouldGenerate |= uiParam<float>("tile anim", texParams.tileAnimScale,
             texParams.tileAnimScale-0.01, texParams.tileAnimScale+0.01,
             0, 5);
 
@@ -368,7 +373,7 @@ public:
         }
         if (_ui.button("reset")) {
             texParams.gradient = Gradient{};
-            changed = true;
+            _shouldGenerate = true;
             colorIdx = 0;
         }
         _ui.line();
@@ -390,14 +395,14 @@ public:
                 steps.push_back({step.color, 1.0});
             }
             colorIdx++;
-            changed = true;
+            _shouldGenerate = true;
         }
         if (nColors > 2 && _ui.button("del")) {
             steps.erase(steps.begin()+colorIdx);
             colorIdx--;
-            changed = true;
+            _shouldGenerate = true;
         }
-        changed |= uiParam<float>("pos", step.pos,
+        _shouldGenerate |= uiParam<float>("pos", step.pos,
             step.pos-0.01, step.pos+0.01,
             0, 1);
         _ui.align(40);
@@ -405,7 +410,7 @@ public:
             // duplicate current color
             steps.insert(steps.begin()+colorIdx+1, step);
         }
-        changed |= uiColor(step.color);
+        _shouldGenerate |= uiColor(step.color);
 
         // maintain sort order of color steps when pos changes
         if (colorIdx > 0 && step.pos < steps[colorIdx-1].pos) {
@@ -415,10 +420,6 @@ public:
         if (colorIdx+1 < steps.size() && step.pos > steps[colorIdx+1].pos) {
             std::swap(steps[colorIdx], steps[colorIdx+1]);
             colorIdx++;
-        }
-
-        if (changed) {
-            generateTextures(renderer);
         }
     }
 
@@ -494,7 +495,12 @@ public:
         return _textures[_texIndices[index]];
     }
 
-    void render(Renderer *renderer) {
+    void render(Renderer *renderer) override {
+        if (_shouldGenerate) {
+            generateTextures(renderer);
+            _shouldGenerate = false;
+        }
+
         int rep = gridSize;
         Vec2 ts = tileSize();
         for (int i = 0; i < rep; ++i) {
