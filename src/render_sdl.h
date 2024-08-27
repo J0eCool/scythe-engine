@@ -67,10 +67,6 @@ public:
                 // unsupported character; no extended ASCII tyvm
                 continue;
             }
-            if (c >= 'a' && c <= 'z') {
-                // uppercase everything cause we have no lowercase yet
-                c -= 'a' - 'A';
-            }
             int j = c % 16;
             int k = c / 16;
             SDL_Rect srcRect {j*w, k*h, w, h};
