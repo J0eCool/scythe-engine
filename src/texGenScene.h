@@ -292,7 +292,6 @@ public:
 
         if (!isAnimating()) {
             log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
-            // log("hey let's fuck it up");
         }
     }
 

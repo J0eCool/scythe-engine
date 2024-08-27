@@ -24,18 +24,14 @@ struct Program {
     bool _quit = false;
 
     UI _menu;
-    GameScene _gameScene;
-    TexGenScene _texScene;
-    RpgScene _rpgScene;
+    GameScene* _gameScene;
+    TexGenScene* _texScene;
+    RpgScene* _rpgScene;
     Scene* _curScene;
 
     Program(Allocator* allocator) :
             _allocator(allocator),
-            _texScene(_allocator, &_input),
-            _gameScene(&_input, &_texScene),
-            _rpgScene(_allocator, &_input),
             _menu(allocator, &_input) {
-        _curScene = &_texScene;
         _window = SDL_CreateWindow(
             "I Heard You Liked Video Games",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -65,7 +61,13 @@ struct Program {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        _texScene.onLoad();
+        _texScene = _allocator->knew<TexGenScene>(_allocator, &_input);
+        _gameScene = _allocator->knew<GameScene>(&_input, _texScene);
+        _rpgScene = _allocator->knew<RpgScene>(_allocator, &_input);
+
+        _curScene = _texScene;
+
+        _texScene->onLoad();
 
         _input.resetBindings();
 
@@ -96,13 +98,17 @@ struct Program {
         _input.addMouseBind("click", SDL_BUTTON_LEFT);
         _input.addMouseBind("rclick", SDL_BUTTON_RIGHT);
 
-        _texScene.generateTextures(_renderer);
+        _texScene->generateTextures(_renderer);
     }
 
     /// @brief Called before unloading the dll. Clear any state that can't be
     /// persisted across reloads.
     void onUnload() {
-        _texScene.onUnload();
+        _texScene->onUnload();
+
+        _allocator->del(_texScene);
+        _allocator->del(_gameScene);
+        _allocator->del(_rpgScene);
     }
 
     bool shouldQuit() {
@@ -130,9 +136,9 @@ struct Program {
         // change current scene
         _menu.startUpdate({30, 30});
         std::vector<std::pair<const char*, Scene*>> scenes {
-            {"texgen", &_texScene},
-            {"game", &_gameScene},
-            {"rpg", &_rpgScene},
+            {"texgen", _texScene},
+            {"game", _gameScene},
+            {"rpg", _rpgScene},
         };
         for (auto &item : scenes) {
             _menu.line();
@@ -160,9 +166,7 @@ extern "C" {
 
 __declspec(dllexport)
 Program* newGame(Allocator* allocator) {
-    Program* game = (Program*)allocator->calloc(1, sizeof(Program));
-    new (game) Program(allocator);
-    return game;
+    return allocator->knew<Program>(allocator);
 }
 __declspec(dllexport)
 void freeGame(Program* game, Allocator* allocator) {

@@ -14,6 +14,19 @@ struct Allocator {
     void* (*malloc)(size_t);
     void* (*calloc)(size_t, size_t);
     void (*free)(void*);
+
+    template <typename T, typename ...Args>
+    T* knew(Args ...args) {
+        T* ptr = (T*)calloc(1, sizeof(T));
+        new (ptr) T(args...);
+        return ptr;
+    }
+
+    template <typename T>
+    void del(T* ptr) {
+        ptr->~T();
+        free(ptr);
+    }
 };
 
 /// @brief a check is a nonfatal assert
