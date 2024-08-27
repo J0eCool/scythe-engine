@@ -24,6 +24,7 @@ std::vector<const char*> filesToScan {
     "../src/render_sdl.h",
     "../src/rpgScene.h",
     "../src/scene.h",
+    "../src/serialize.h",
     "../src/texGen.h",
     "../src/texGenScene.h",
     "../src/ui.h",

@@ -7,11 +7,11 @@
 #include "ui.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "serialize.h"
 #include "texGen.h"
 #include "vec.h"
 
 #include <alloca.h>
-#include <fstream>
 #include <math.h>
 #include <random>
 #include <vector>
@@ -56,10 +56,27 @@ public:
         texParams.seed = r() + SDL_GetTicks();
         _rand_engine = std::ranlux24_base(texParams.seed);
         _shouldGenerate = true;
+
+        loadParams();
     }
 
     void onUnload() {
         _ui.unload();
+
+        saveParams();
+    }
+
+    const char* saveFile = "../data/texture.texParams";
+    void saveParams() {
+        saveToFile(saveFile, texParams);
+        log("params saved to file");
+    }
+
+    void loadParams() {
+        if (loadFromFile(saveFile, texParams)) {
+            log("params loaded from file");
+            _shouldGenerate = true;
+        }
     }
 
 private:
@@ -316,23 +333,11 @@ public:
             texParams.seed = _rand_engine();
             _shouldGenerate = true;
         }
-        const char* saveFile = "../data/texture.dat";
         if (_ui.button("save")) {
-            std::ofstream file;
-            file.open(saveFile);
-            file << texParams;
-            file.close();
-            log("params saved to file");
+            saveParams();
         }
         if (_ui.button("load")) {
-            std::ifstream file;
-            file.open(saveFile);
-            if (check(file.is_open(), "could not open file")) {
-                file >> texParams;
-                file.close();
-                log("params loaded from file");
-            }
-            _shouldGenerate = true;
+            loadParams();
         }
         _ui.line();
 

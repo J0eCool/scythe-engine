@@ -1,6 +1,7 @@
 #pragma once
 
 #include "color.h"
+#include "serialize.h"
 #include "vec.h"
 
 #include <fstream>
@@ -47,33 +48,19 @@ struct TexParams {
     float noiseAnimScale = 0;
     float tileAnimScale = 0;
 };
-std::ostream& operator<<(std::ostream &stream, TexParams const& params) {
-    return stream
-        << params.seed << '\n'
-        << params.noiseSize << '\n'
-        << params.numTextures << '\n'
-        << params.mode << '\n'
-        << params.noiseScale << '\n'
-        << params.texSize << '\n'
-        << params.gradient << '\n'
-        << params.gradAnimScale << '\n'
-        << params.noiseAnimScale << '\n'
-        << params.tileAnimScale << '\n'
-        ;
-}
-std::istream& operator>>(std::istream &stream, TexParams &params) {
-    return stream
-        >> params.seed
-        >> params.noiseSize
-        >> params.numTextures
-        >> params.mode
-        >> params.noiseScale
-        >> params.texSize
-        >> params.gradient
-        >> params.gradAnimScale
-        >> params.noiseAnimScale
-        >> params.tileAnimScale
-        ;
+Serialize<TexParams> serialize(TexParams &params) {
+    Serialize<TexParams> serial(params);
+    serial.addField("seed", params.seed);
+    serial.addField("noiseSize", params.noiseSize);
+    serial.addField("numTextures", params.numTextures);
+    serial.addField("mode", params.mode);
+    serial.addField("noiseScale", params.noiseScale);
+    serial.addField("texSize", params.texSize);
+    serial.addField("gradient", params.gradient);
+    serial.addField("gradAnimScale", params.gradAnimScale);
+    serial.addField("noiseAnimScale", params.noiseAnimScale);
+    serial.addField("tileAnimScale", params.tileAnimScale);
+    return serial;
 }
 
 class TexGen {
