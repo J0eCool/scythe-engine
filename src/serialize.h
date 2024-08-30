@@ -1,12 +1,17 @@
 #pragma once
 
+#include "common.h"
+#include "test.h"
+
 #include <functional>
 #include <fstream>
+#include <vector>
 
 template <typename T>
 class Serialize {
     struct Field {
         const char* name;
+
         std::function<void (std::istream&)> read;
         std::function<void (std::ostream&)> write;
     };
@@ -80,3 +85,7 @@ static bool loadFromFile(const char* filename, T &item) {
     }
     return false;
 }
+
+TEST(foo, {
+    TEST_EQ(2+2, 4, "addition works");
+})
