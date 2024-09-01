@@ -5,6 +5,8 @@
 /// @brief abstract base class for
 class Scene {
 public:
+    virtual ~Scene() {}
+
     virtual void update(float dt) = 0;
     virtual void render(Renderer* renderer) = 0;
 };

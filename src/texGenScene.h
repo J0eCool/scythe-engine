@@ -13,19 +13,11 @@
 
 #include <alloca.h>
 #include <math.h>
-#include <random>
 #include <vector>
 
-#include <SDL2/SDL.h>
-
 class TexGenScene : public Scene {
+    TexGen *_texGen;
     UI _ui;
-    std::ranlux24_base _rand_engine;
-    // latest seed used to generate textures
-    std::vector<SDL_Texture*> _textures;
-    std::vector<int> _texIndices;
-
-    TexParams texParams;
 
     int colorIdx = 0; // current gradient step index
 
@@ -33,28 +25,14 @@ class TexGenScene : public Scene {
     int renderSize = 1024; // NxN size of total display area on screen
     int gridSize = 16; // render an NxN grid of textures
 
-    float gradAnimTime;
-    float noiseAnimTime;
-    float tileAnimTime;
-
     bool _shouldGenerate;
 
 public:
-    TexGenScene(Allocator *alloc, Input *input) : _ui(alloc, input) {
-    }
-
-    ~TexGenScene() {
-        for (auto tex : _textures) {
-            SDL_DestroyTexture(tex);
-        }
+    TexGenScene(TexGen *texGen, Allocator *alloc, Input *input) :
+            _texGen(texGen), _ui(alloc, input) {
     }
 
     void onLoad() {
-        // random_device seems to give a consistent value in dll, so offset by
-        // ticks elapsed since program start to get new results on each reload
-        std::random_device r;
-        texParams.seed = r() + SDL_GetTicks();
-        _rand_engine = std::ranlux24_base(texParams.seed);
         _shouldGenerate = true;
 
         loadParams();
@@ -68,269 +46,27 @@ public:
 
     const char* saveFile = "../data/texture.texParams";
     void saveParams() {
-        saveToFile(saveFile, texParams);
+        saveToFile(saveFile, _texGen->texParams);
         log("params saved to file");
     }
 
     void loadParams() {
-        if (loadFromFile(saveFile, texParams)) {
+        if (loadFromFile(saveFile, _texGen->texParams)) {
             log("params loaded from file");
             _shouldGenerate = true;
         }
     }
 
-private:
-    int randInt(int limit = INT32_MAX) {
-        return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
-    }
-    float randFloat(float limit = 1.0) {
-        return std::uniform_real_distribution<float>(0, limit)(_rand_engine);
-    }
-    float randFloat(float lo, float hi) {
-        return lerp(randFloat(), lo, hi);
-    }
-    Uint8 randByte() {
-        return randInt(0x100);
-    }
-    /// @brief Generate a random `true` or `false` value
-    /// @param p probability of a `true` result
-    bool randBool(float p = 0.5) {
-        return randFloat() < p;
-    }
-    /// @brief Approximate a normal distribution by taking the average of 4 rolls.
-    /// This biases the distribution towards 0.5
-    /// @return A value between 0 and 1
-    float randNormalish() {
-        return (randFloat() + randFloat() + randFloat() + randFloat()) / 4;
-    }
-
-    void generateNoise(NoiseSample* noise, int n) {
-        for (int y = 0; y < n; ++y) {
-            for (int x = 0; x < n; ++x) {
-                NoiseSample &s = noise[y*n + x];
-                s = {
-                    randFloat(0.0, 1.0),
-                    { randByte(), randByte(), randByte(), 0xff },
-                    { randFloat(0.3, 1.0),
-                      randFloat(0.3, 1.0),
-                    },
-                };
-                s.v = sin(PI*(s.v-0.5) + TAU*noiseAnimTime)/2+0.5f;
-            }
-        }
-    }
-
-    SDL_Surface* generateSurface(NoiseSample* noise, int n, int texSize) {
-        const int bpp = 32;
-        SDL_Surface *surface = SDL_CreateRGBSurface(
-            0, texSize, texSize, bpp,
-            // RGBA bitmasks; A mask is special
-            0xff, 0xff << 8, 0xff << 16, 0);
-        Vec2f ntoi { float(texSize)/n, float(texSize)/n };
-        Vec2f iton { float(n)/texSize, float(n)/texSize };
-        // for each noise cell
-        for (int y = -1; y < n; ++y) {
-            for (int x = -1; x < n; ++x) {
-                // sample each corner 
-                // _i for index
-                // _n for noise-coord position
-                Vec2f p_n = {float(x), float(y)};
-                Vec2i ul_i = Vec2i{x+0, y+0};
-                Vec2i ur_i = Vec2i{x+0, y+1};
-                Vec2i bl_i = Vec2i{x+1, y+0};
-                Vec2i br_i = Vec2i{x+1, y+1};
-                NoiseSample ul_s = noise[((ul_i.y+n) % n)*n + ((ul_i.x+n) % n)];
-                NoiseSample ur_s = noise[((ur_i.y+n) % n)*n + ((ur_i.x+n) % n)];
-                NoiseSample bl_s = noise[((bl_i.y+n) % n)*n + ((bl_i.x+n) % n)];
-                NoiseSample br_s = noise[((br_i.y+n) % n)*n + ((br_i.x+n) % n)];
-                Vec2f ul = ul_i.to<float>() + ul_s.pos;
-                Vec2f ur = ur_i.to<float>() + ur_s.pos;
-                Vec2f bl = bl_i.to<float>() + bl_s.pos;
-                Vec2f br = br_i.to<float>() + br_s.pos;
-                Vec2i bound_lo = floorv(ntoi*min(ul, min(ur, bl)));
-                Vec2i bound_hi =  ceilv(ntoi*max(br, max(ur, bl)));
-                assert(bound_lo.x <= bound_hi.x && bound_lo.y <= bound_hi.y,
-                    "invalid noise bounds <%f, %f> hi=<%f, %f>",
-                    bound_lo.x, bound_lo.y, bound_hi.x, bound_hi.y);
-
-                // iterate over the pixels in the AABB
-                for (int j = max(0, bound_lo.y); j < min(texSize, bound_hi.y); ++j) {
-                    for (int i = max(0, bound_lo.x); i < min(texSize, bound_hi.x); ++i) {
-                        Vec2 p = iton * Vec2 { float(i), float(j) };
-
-                        // convert to UV coordinates inside the quad
-                        // if either U or V is out of [0, 1], then we're not inside the quad
-                        // https://iquilezles.org/articles/ibilinear/
-                        Vec2 e = ur-ul;
-                        Vec2 f = bl-ul;
-                        Vec2 g = ul-ur+br-bl;
-                        Vec2 h = p - ul;
-                        float k2 = g.cross(f);
-                        float k1 = e.cross(f) + h.cross(g);
-                        float k0 = h.cross(e);
-                        float disc = k1*k1 - 4*k0*k2;
-                        Vec2 uv;
-                        if (abs(k2) < 0.001) {
-                            // if perfectly parallel, linear
-                            uv = {
-                                (h.x*k1 + f.x*k0) / (e.x*k1 - g.x*k0),
-                                -k0/k1
-                            };
-                        } else {
-                            if (disc < 0) {
-                                continue;
-                            }
-
-                            uv.y = (-k1 - sqrt(disc))/(2*k2);
-                            uv.x = (h.x - f.x*uv.y)/(e.x + g.x*uv.y);
-                            if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1) {
-                                uv.y = (-k1 + sqrt(disc))/(2*k2);
-                                uv.x = (h.x - f.x*uv.y)/(e.x + g.x*uv.y);
-                            }
-                            if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1) {
-                                continue;
-                            }
-                        }
-
-                        float a = smoothstep(uv.x, ul_s.v, ur_s.v);
-                        float b = smoothstep(uv.x, bl_s.v, br_s.v);
-                        float c = smoothstep(uv.y, a, b);
-                        // given 4 samples and a UV coordinate, interpolate
-                        Color *pixel = (Color*)((Uint8*)surface->pixels
-                            + j*surface->pitch
-                            + i*surface->format->BytesPerPixel);
-                        if (texParams.mode == 0) {
-                            *pixel = ul_s.color;
-                        } else if (texParams.mode == 1) {
-                            Color a = smoothstep(uv.x, ul_s.color, ur_s.color);
-                            Color b = smoothstep(uv.x, bl_s.color, br_s.color);
-                            *pixel = smoothstep(uv.y, a, b);
-                        } else {
-                            int cc = 0xff*(texParams.noiseScale*c);
-                            if (texParams.mode == 2) {
-                                *pixel = {0, 0, 0, 0xff};
-                                // RGB cycles in 3s, value up/down cycles in 2s
-                                bool even = (cc % 0x200) < 0x100;
-                                cc = cc % 0x300;
-                                if (cc >= 0x200) {
-                                    if (even) cc = 0xff - (cc%0x100);
-                                    pixel->g = cc % 0x100;
-                                } else if (cc >= 0x100) {
-                                    if (even) cc = 0xff - (cc%0x100);
-                                    pixel->r = cc % 0x100;
-                                } else {
-                                    if (even) cc = 0xff - (cc%0x100);
-                                    pixel->b = cc % 0x100;
-                                }
-                            } else if (texParams.mode == 3) {
-                                if ((cc/0x100) % 2 == 0) {
-                                    cc = (0xff - cc%0x100);
-                                } else {
-                                    cc %= 0x100;
-                                }
-                                *pixel = {Uint8(cc), Uint8(cc), Uint8(cc)};
-                            } else if (texParams.mode == 4) {
-                                if ((cc/0x100) % 2 == 0) {
-                                    cc = (0xff - cc%0x100);
-                                } else {
-                                    cc %= 0x100;
-                                }
-                                const float r = 360.0f * (9/43.0f);
-                                *pixel = (cc/255.0f) * hsvColor(r*_textures.size(), 1, 1);
-                            } else if (texParams.mode == 5) {
-                                c = abs(fmod(c+gradAnimTime,2.0f)-1);
-                                *pixel = texParams.gradient.sample(c);
-                            } else {
-                                check(false, "invalid mode");
-                                return surface;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return surface;
-    }
-
-public:
-    void generateTextures(Renderer *renderer) {
-        Tracer("Game::generateTextures");
-        Timer timer;
-
-        _rand_engine.seed(texParams.seed);
-
-        for (auto tex : _textures) {
-            SDL_DestroyTexture(tex);
-        }
-        _textures.clear();
-        _texIndices.clear();
-        // noise width/height
-        int n = texParams.noiseSize;
-        std::vector<NoiseSample*> noises; // a list of NxN grids of noise
-
-        // generate the noise grids
-        NoiseSample boundary[n*n];
-        generateNoise(boundary, n);
-        for (int i = 0; i < texParams.numTextures; ++i) {
-            NoiseSample *noise = (NoiseSample*)alloca(n*n*sizeof(NoiseSample));
-            generateNoise(noise, n);
-            if (i == (int)(tileAnimTime/2) % texParams.numTextures) {
-                // actual boundary is lerped between the different tiles'
-                for (int j = 0; j < n*n; ++j) {
-                    float t = 2*abs(fmod(tileAnimTime,2.0)/2 - 0.5);
-                    boundary[j] = slerp(t, noise[j], boundary[j]);
-                }
-            }
-            noises.push_back(noise);
-        }
-        
-        for (int i = 0; i < texParams.numTextures; ++i) {
-            NoiseSample noise[n*n];
-            int idx = (i+(int)tileAnimTime) % texParams.numTextures;
-            NoiseSample *prev = noises[idx];
-            NoiseSample *next = noises[(idx+1) % texParams.numTextures];
-            for (int j = 0; j < n*n; ++j) {
-                float t = frac(tileAnimTime);
-                t = sin((t-0.5f)*PI)/2+0.5;
-                noise[j] = lerp(t, prev[j], next[j]);
-            }
-            // set the generated noise's boundary to be equal to the boundary noise
-            for (int j = 0; j < n; ++j) {
-                /* [x][0]   */ noise[j] = boundary[j];
-                /* [x][n-1] */ noise[j+n*(n-1)] = boundary[j+n];
-                /* [0][y]   */ noise[j*n] = boundary[j*n];
-                /* [n-1][y] */ noise[j*n+n-1] = boundary[j*n+n-1];
-            }
-            SDL_Surface *surface = generateSurface(noise, n, texParams.texSize);
-            auto sdl = renderer->sdl();
-            _textures.push_back(SDL_CreateTextureFromSurface(sdl, surface));
-            SDL_FreeSurface(surface);
-        }
-
-        if (!isAnimating()) {
-            log("Generated %d textures in %dms", _textures.size(), timer.elapsedMs());
-        }
-    }
-
-    bool isAnimating() const {
-        return texParams.gradAnimScale > 0 || texParams.noiseAnimScale > 0 || texParams.tileAnimScale > 0;
-    }
-
     void update(float dt) override {
-        noiseAnimTime += texParams.noiseAnimScale*dt;
-        gradAnimTime += texParams.gradAnimScale*dt;
-        tileAnimTime += texParams.tileAnimScale*dt;
+        _texGen->update(dt);
         // if we change a param that affects texture appearance, regenerate the textures
-        _shouldGenerate = isAnimating();
+        _shouldGenerate = _texGen->isAnimating();
         
         _ui.startUpdate({ 90, 30 });
 
         _ui.align(180);
         if (_ui.button("reroll")) {
-            noiseAnimTime = 0;
-            gradAnimTime = 0;
-            tileAnimTime = 0;
-            texParams.seed = _rand_engine();
+            _texGen->reroll();
             _shouldGenerate = true;
         }
         if (_ui.button("save")) {
@@ -341,42 +77,33 @@ public:
         }
         _ui.line();
 
-        _shouldGenerate |= uiParam("noise size", texParams.noiseSize,
-            texParams.noiseSize-1, texParams.noiseSize+1,
-            3, texParams.texSize);
-        _shouldGenerate |= uiParam("num textures", texParams.numTextures,
-            texParams.numTextures-1, texParams.numTextures+1,
-            1, 64);
+        _shouldGenerate |= uiParam("noise size", _texGen->texParams.noiseSize,
+            1, 3, _texGen->texParams.texSize);
+        _shouldGenerate |= uiParam("num textures", _texGen->texParams.numTextures,
+            1, 1, 64);
         const int nModes = 6;
-        _shouldGenerate |= uiParam("mode", texParams.mode,
-            (texParams.mode+nModes-1) % nModes, (texParams.mode+1) % nModes,
-            0, nModes-1);
-        _shouldGenerate |= uiParam("noise scale", texParams.noiseScale,
-            texParams.noiseScale-1, texParams.noiseScale+1,
-            1, 10);
-        _shouldGenerate |= uiParam("tex size", texParams.texSize,
-            texParams.texSize/2, texParams.texSize*2,
-            4, 512);
-        _shouldGenerate |= uiParam("grid size", gridSize,
-            gridSize/2, gridSize*2,
-            1, 64);
+        _shouldGenerate |= uiParam("mode", _texGen->texParams.mode,
+            1, 0, nModes-1);
+        _shouldGenerate |= uiParam("noise scale", _texGen->texParams.noiseScale,
+            1, 1, 10);
+        _shouldGenerate |= uiParamMult("tex size", _texGen->texParams.texSize,
+            2, 4, 512);
+        _shouldGenerate |= uiParamMult("grid size", gridSize,
+            2, 1, 64);
 
-        _shouldGenerate |= uiParam<float>("noise anim", texParams.noiseAnimScale,
-            texParams.noiseAnimScale-0.01, texParams.noiseAnimScale+0.01,
-            0, 1);
-        _shouldGenerate |= uiParam<float>("grad anim", texParams.gradAnimScale,
-            texParams.gradAnimScale-0.01, texParams.gradAnimScale+0.01,
-            0, 1);
-        _shouldGenerate |= uiParam<float>("tile anim", texParams.tileAnimScale,
-            texParams.tileAnimScale-0.01, texParams.tileAnimScale+0.01,
-            0, 5);
+        _shouldGenerate |= uiParam<float>("noise anim", _texGen->texParams.noiseAnimScale,
+            0.01, 0, 1);
+        _shouldGenerate |= uiParam<float>("grad anim", _texGen->texParams.gradAnimScale,
+            0.01, 0, 1);
+        _shouldGenerate |= uiParam<float>("tile anim", _texGen->texParams.tileAnimScale,
+            0.01, 0, 5);
 
-        auto &steps = texParams.gradient.steps;
+        auto &steps = _texGen->texParams.gradient.steps;
         for (auto step : steps) {
             _ui.rect(step.color, Vec2{32});
         }
         if (_ui.button("reset")) {
-            texParams.gradient = Gradient{};
+            _texGen->texParams.gradient = Gradient{};
             _shouldGenerate = true;
             colorIdx = 0;
         }
@@ -428,6 +155,14 @@ public:
     }
 
 private:
+    template <typename T>
+    bool uiParamMult(const char* text, T &val, T mult, T lo, T hi) {
+        return uiParam(text, val, val/mult, val*mult, lo, hi);
+    }
+    template <typename T>
+    bool uiParam(const char* text, T &val, T delta, T lo, T hi) {
+        return uiParam(text, val, val-delta, val+delta, lo, hi);
+    }
     template <typename T>
     bool uiParam(const char* text, T &val, T dec, T inc, T lo, T hi) {
         // right-align the labels :O
@@ -489,19 +224,9 @@ public:
         return Vec2{(float)renderSize} / gridSize;
     }
 
-    SDL_Texture* textureForIndex(int index) {
-        // assert in case we get an underflowed `index` or something
-        assert(_texIndices.size() < index+100'000,
-            "don't generate more than 100,000 texture indices at a time pls");
-        while (index >= _texIndices.size()) {
-            _texIndices.push_back(randInt(_textures.size()));
-        }
-        return _textures[_texIndices[index]];
-    }
-
     void render(Renderer *renderer) override {
         if (_shouldGenerate) {
-            generateTextures(renderer);
+            _texGen->generateTextures(renderer);
             _shouldGenerate = false;
         }
 
@@ -509,19 +234,13 @@ public:
         Vec2 ts = tileSize();
         for (int i = 0; i < rep; ++i) {
             for (int j = 0; j < rep; ++j) {
-                renderer->drawImage(textureForIndex(i*rep + j),
+                renderer->drawImage(_texGen->textureForIndex(i*rep + j),
                     Vec2{800, 40} + Vec2i{i, j}.to<float>()*tileSize(),
                     tileSize());
             }
         }
 
-        int n = (int)ceil(sqrt(_textures.size()));
-        for (int i = 0; i < _textures.size(); ++i) {
-            float size = texParams.texSize;
-            renderer->drawImage(_textures[i],
-                {760-size*(n - i%n), 1000-size*(n - i/n)},
-                {size, size});
-        }
+        _texGen->renderAtlas(renderer, {160, 820});
 
         _ui.render(renderer);
     }

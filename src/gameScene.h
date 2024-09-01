@@ -118,11 +118,12 @@ class GameScene : public Scene {
     std::vector<Bullet> _bullets;
 
     Input* _input;
+    TexGen* _texGen;
     TexGenScene* _texScene;
 
 public:
-    GameScene(Input* input, TexGenScene* texScene) :
-        _input(input), _texScene(texScene) {
+    GameScene(Input* input, TexGen *texGen, TexGenScene* texScene) :
+        _input(input), _texGen(texGen), _texScene(texScene) {
     }
 
     void update(float dt) override {
@@ -156,7 +157,7 @@ public:
         int h = ceil(groundHeight/tileSize.y);
         for (int i = 0; i < w; ++i) {
             for (int j = 0; j < h; ++j) {
-                renderer->drawImage(_texScene->textureForIndex(i + j*w),
+                renderer->drawImage(_texGen->textureForIndex(i + j*w),
                     {i*tileSize.x, j*tileSize.y + groundY},
                     tileSize);
             }

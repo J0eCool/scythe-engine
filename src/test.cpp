@@ -1,3 +1,5 @@
+// test.exe - Standalone test runner
+
 // the test app is always built with testing enabled
 #define TESTING
 

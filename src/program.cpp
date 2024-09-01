@@ -24,6 +24,7 @@ struct Program {
     bool _quit = false;
 
     UI _menu;
+    TexGen _texGen;
     GameScene* _gameScene;
     TexGenScene* _texScene;
     RpgScene* _rpgScene;
@@ -61,8 +62,8 @@ struct Program {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        _texScene = _allocator->knew<TexGenScene>(_allocator, &_input);
-        _gameScene = _allocator->knew<GameScene>(&_input, _texScene);
+        _texScene = _allocator->knew<TexGenScene>(&_texGen, _allocator, &_input);
+        _gameScene = _allocator->knew<GameScene>(&_input, &_texGen, _texScene);
         _rpgScene = _allocator->knew<RpgScene>(_allocator, &_input);
 
         _curScene = _texScene;
@@ -98,7 +99,7 @@ struct Program {
         _input.addMouseBind("click", SDL_BUTTON_LEFT);
         _input.addMouseBind("rclick", SDL_BUTTON_RIGHT);
 
-        _texScene->generateTextures(_renderer);
+        _texGen.generateTextures(_renderer);
     }
 
     /// @brief Called before unloading the dll. Clear any state that can't be
@@ -121,10 +122,6 @@ struct Program {
         trace("stack addr: %x (val=%d)", &stackval, stackval);
 
         _input.update();
-
-        if (_input.didPress("1")) {
-            log("njoy: %d", SDL_NumJoysticks());
-        }
 
         trace("input handling");
         if (_input.didPress("quit")) {
