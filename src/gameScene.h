@@ -17,18 +17,18 @@ const float groundHeight = 250;
 const float groundY = screenSize.y - groundHeight;
 
 struct Entity {
-    Vec2 _pos;
-    Vec2 _vel;
+    Vec3 _pos;
+    Vec3 _vel;
     Vec2 _size;
 
-    Entity(Vec2 pos, Vec2 vel, Vec2 size)
+    Entity(Vec3 pos, Vec3 vel, Vec2 size)
         : _pos(pos), _vel(vel), _size(size) {
     }
 
     virtual void update(float dt) = 0;
 
-    void render(Renderer* renderer) {
-        renderer->drawRect(_pos, _size);
+    virtual void render(Renderer* renderer) {
+        renderer->drawRect(_pos.xy(), _size);
     }
 };
 
@@ -36,7 +36,7 @@ struct Bullet : public Entity {
     float _lifespan;
     float _lived;
 
-    Bullet(Vec2 pos, Vec2 vel, float lifespan)
+    Bullet(Vec3 pos, Vec3 vel, float lifespan)
         : Entity(pos, vel, {20, 20}),
         _lifespan(lifespan), _lived(0) {
     }
@@ -67,7 +67,7 @@ struct Player : public Entity {
     /// HACK: we set this in game->update, which is a terrible way to do this
     const Input* _input;
     Player() : Entity(
-        /*pos*/ {300, 400},
+        /*pos*/ {300, groundY},
         /*vel*/ {0, 0},
         /*size*/ {28, 52}) {
     }
@@ -94,22 +94,33 @@ struct Player : public Entity {
             _vel.x += delta;
         }
         _vel.x = clamp(_vel.x, -speed, speed);
+
+        _vel.y = speed*_input->getAxis("vertical");
         
-        _vel.y += gravity*dt;
+        _vel.z += gravity*dt;
         if (_input->didPress("jump") && _isOnGround) {
-            _vel.y = -sqrt(2*gravity*jumpHeight);
+            _vel.z = -sqrt(2*gravity*jumpHeight);
             _isOnGround = false;
         }
-        if (_input->didRelease("jump") && _vel.y < 0) {
-            _vel.y = 0.3*_vel.y;
+        if (_input->didRelease("jump") && _vel.z < 0) {
+            _vel.z = 0.3*_vel.z;
         }
 
         _pos += dt*_vel;
-        if (_pos.y + _size.y > groundY) {
-            _pos.y = groundY - _size.y;
-            _vel.y = 0;
+        if (_pos.z > 0) {
+            _pos.z = 0;
+            _vel.z = 0;
             _isOnGround = true;
         }
+    }
+
+    void render(Renderer* renderer) override {
+        renderer->setColor(0.2, 0.2, 0.2, 1);
+        float shadow = 10;
+        renderer->drawRect(_pos.xy() + Vec2 {-shadow, _size.y-shadow},
+            {_size.x + 2*shadow, 2*shadow});
+        renderer->setColor(0, 1, 1, 1);
+        renderer->drawRect({_pos.x, _pos.y+_pos.z}, _size);
     }
 };
 
@@ -154,11 +165,11 @@ public:
     void render(Renderer* renderer) override {
         Vec2 tileSize = _texScene->tileSize();
         int w = ceil(screenSize.x/tileSize.x);
-        int h = ceil(groundHeight/tileSize.y);
+        int h = ceil(screenSize.y/tileSize.y);
         for (int i = 0; i < w; ++i) {
             for (int j = 0; j < h; ++j) {
                 renderer->drawImage(_texGen->textureForIndex(i + j*w),
-                    {i*tileSize.x, j*tileSize.y + groundY},
+                    {i*tileSize.x, j*tileSize.y},
                     tileSize);
             }
         }
@@ -168,7 +179,6 @@ public:
             bullet.render(renderer);
         }
 
-        renderer->setColor(0, 1, 1, 1);
         _player.render(renderer);
 
         renderer->drawText("Did everything go", 1100, 145);

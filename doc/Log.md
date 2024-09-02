@@ -1,0 +1,7 @@
+- Working on a platformer prototype
+	- Need to ideate on the design more
+	- core idea is to play around with large complex engaging room design
+	- implementation-wise, need to be able to move the character in "3D"
+	- need to give the character the ability to move up and down
+		- and keep the ability to jump? will need to add a z coordinate
+		- this means we'll need to write `Vec3`
