@@ -177,10 +177,14 @@ public:
         _elements.clear();
     }
 
-    void startUpdate(Vec2 pos) {
+    void startUpdate(Vec2 pos = {0, 0}) {
         _cursor = _origin = pos;
         _elemIdx = 0;
         _lineHeight = 0;
+    }
+
+    void region(Vec2 pos) {
+        _cursor = _origin = pos;
     }
 
     void render(Renderer* renderer) {

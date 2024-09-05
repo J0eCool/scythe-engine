@@ -13,6 +13,7 @@
 #include <vector>
 
 struct Fighter {
+    const char* name;
     int hp, maxHp;
     int attack, defense;
     int speed;
@@ -37,18 +38,12 @@ public:
     }
 
     void update(float dt) override {
-        _ui.startUpdate({ 240, 120 });
-        _ui.label("Player");
-        _ui.line();
-        _ui.labels("HP: ", _player.hp, "/", _player.maxHp);
+        _ui.startUpdate();
+
+        _ui.region({240, 120});
+        uiFighter(_player);
         _ui.line();
         _ui.labels("xp: ", _xp);
-        _ui.line();
-        _ui.label(" "); // hack for newline
-        _ui.line();
-        _ui.label("Enemy");
-        _ui.line();
-        _ui.labels("HP: ", _enemy.hp, "/", _enemy.maxHp);
         _ui.line();
         if (_ui.button("attack")) {
             _enemy.hp -= max(0, _player.attack - _enemy.defense);
@@ -69,14 +64,29 @@ public:
         if (_ui.button("flee")) {
             initBattle();
         }
+
+        _ui.region({800, 120});
+        uiFighter(_enemy);
     }
+
+    void uiFighter(Fighter& fighter) {
+        _ui.label(fighter.name);
+        _ui.line();
+        _ui.labels("HP: ", fighter.hp, "/", fighter.maxHp);
+        _ui.line();
+        _ui.labels("ATK: ", fighter.attack);
+        _ui.line();
+        _ui.labels("DEF: ", fighter.defense);
+    }
+
     void render(Renderer* renderer) override {
+        renderer->background({0x10, 0x20, 0xc0});
         _ui.render(renderer);
     }
 
     void initBattle() {
-        _player = { 100, 100, 7, 3, 100, 0.0 };
-        _enemy = { 25, 25, 6, 2, 90, 0.0 };
+        _player = { "Player", 100, 100, 7, 3, 100, 0.0 };
+        _enemy = { "Emmeny", 25, 25, 6, 2, 90, 0.0 };
     }
 
     void uiCursor() {}
