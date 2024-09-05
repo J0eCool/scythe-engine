@@ -28,7 +28,7 @@ struct Entity {
     virtual void update(float dt) = 0;
 
     virtual void render(Renderer* renderer) {
-        renderer->drawRect(_pos.xy(), _size);
+        renderer->drawRect({_pos.x, _pos.y+_pos.z}, _size);
     }
 };
 

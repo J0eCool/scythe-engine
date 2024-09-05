@@ -87,6 +87,8 @@ struct Program {
         _input.addControllerBind("shoot", SDL_CONTROLLER_BUTTON_X);
         _input.addControllerBind("left", SDL_CONTROLLER_BUTTON_DPAD_LEFT);
         _input.addControllerBind("right", SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+        _input.addControllerBind("up", SDL_CONTROLLER_BUTTON_DPAD_UP);
+        _input.addControllerBind("down", SDL_CONTROLLER_BUTTON_DPAD_DOWN);
         _input.addControllerAxis("horizontal", SDL_CONTROLLER_AXIS_LEFTX);
         _input.addControllerAxis("vertical", SDL_CONTROLLER_AXIS_LEFTY);
 
@@ -150,8 +152,12 @@ struct Program {
 
     void render() {
         Tracer trace("Game::render");
+        _renderer->startFrame();
+
         _curScene->render(_renderer);
         _menu.render(_renderer);
+
+        _renderer->endFrame();
 
         // only trace for one frame per reload to minimize spam
         trace("end"); // we're about to disable tracing so, make it match lol
@@ -194,14 +200,7 @@ void update(Program* game, float dt) {
 
 __declspec(dllexport)
 const void renderScene(Program* game) {
-    SDL_Renderer* renderer = game->_renderer->sdl();
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 25);
-    // SDL_RenderDrawRect(renderer, nullptr);
-    SDL_RenderClear(renderer);
-
     game->render();
-
-    SDL_RenderPresent(renderer);
 }
 
 } // extern "C"

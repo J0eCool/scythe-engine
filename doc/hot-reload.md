@@ -2,7 +2,7 @@ Hot reloading is the best feature in game development.
 
 ## Implementation
 
-There's a [Dylib](src/dylib.h) class responsible for handling the details of loading/reloading, as well as being the struct that holds the function pointers for the dynamically loaded code
+There's a [Dylib](../src/dylib.h) class responsible for handling the details of loading/reloading, as well as being the struct that holds the function pointers for the dynamically loaded code
 
 ```cpp
 #include <SDL2/SDL.h>

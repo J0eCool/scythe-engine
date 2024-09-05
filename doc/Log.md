@@ -1,7 +1,19 @@
+# September 2024
 - Working on a platformer prototype
-	- Need to ideate on the design more
-	- core idea is to play around with large complex engaging room design
-	- implementation-wise, need to be able to move the character in "3D"
-	- need to give the character the ability to move up and down
-		- and keep the ability to jump? will need to add a z coordinate
-		- this means we'll need to write `Vec3`
+	- Start
+		- Need to ideate on the design more
+		- core idea is to play around with large complex engaging room design
+		- implementation-wise, need to be able to move the character in "3D"
+		- need to give the character the ability to move up and down
+			- and keep the ability to jump? will need to add a z coordinate
+			- this means we'll need to write `Vec3` 
+	- Design
+		- make a 3x3 grid of platforms at N different elevations
+		- should be able to jump up a delta of 1, or down any number
+		- this creates a digraph, and possible easy backtracking, esp. if we add powerups that increase crossable distances
+- Switch between multiple textures in generator
+- Eyeball Generator
+	- Design
+		- simple eye consists of 3 shapes: cornea, iris, eyebrow
+		- cornea drawn via testing if point is between upper and lower curve
+		- sliders to tweak params

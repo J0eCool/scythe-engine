@@ -11,6 +11,8 @@ class Renderer {
     SDL_Renderer* _sdlRenderer;
     SDL_Texture *_alphabetTexture;
 
+    Color _bgColor;
+
 public:
     Renderer(SDL_Renderer* sdl) : _sdlRenderer(sdl) {
         SDL_Surface *surf = IMG_Load("../data/alpha.png");
@@ -25,6 +27,18 @@ public:
 
     SDL_Renderer* sdl() const {
         return _sdlRenderer;
+    }
+
+    void startFrame() {
+        setColor(_bgColor);
+        SDL_RenderClear(_sdlRenderer);
+    }
+    void endFrame() {
+        SDL_RenderPresent(_sdlRenderer);
+    }
+
+    void background(Color c) {
+        _bgColor = c;
     }
 
     void setColor(float r, float g, float b, float a = 1.0f) {

@@ -225,6 +225,7 @@ public:
     }
 
     void render(Renderer *renderer) override {
+        renderer->background({0x30, 0x8f, 0x10});
         if (_shouldGenerate) {
             _texGen->generateTextures(renderer);
             _shouldGenerate = false;
