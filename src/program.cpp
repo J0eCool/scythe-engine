@@ -25,10 +25,14 @@ struct Program {
 
     UI _menu;
     TexGen _texGen;
-    GameScene* _gameScene;
-    TexGenScene* _texScene;
-    RpgScene* _rpgScene;
-    Scene* _curScene;
+
+    struct SceneDesc {
+        const char* name;
+        Scene* scene;
+    };
+    std::vector<SceneDesc> _scenes;
+    // stored as an index for ease of serializing state
+    int _curScene = 0;
 
     Program(Allocator* allocator) :
             _allocator(allocator),
@@ -62,13 +66,13 @@ struct Program {
     /// @brief Called after loading the dll, and on each reload.
     /// Useful for iterating configs at the moment
     void onLoad() {
-        _texScene = _allocator->knew<TexGenScene>(&_texGen, _allocator, &_input);
-        _gameScene = _allocator->knew<GameScene>(&_input, &_texGen, _texScene);
-        _rpgScene = _allocator->knew<RpgScene>(_allocator, &_input);
-
-        _curScene = _texScene;
-
-        _texScene->onLoad();
+        auto tex = _allocator->knew<TexGenScene>(&_texGen, _allocator, &_input);
+        tex->onLoad();
+        _scenes.push_back({"texgen", tex});
+        _scenes.push_back({"game",
+            _allocator->knew<GameScene>(&_input, &_texGen, tex)});
+        _scenes.push_back({"rpg",
+            _allocator->knew<RpgScene>(_allocator, &_input)});
 
         _input.resetBindings();
 
@@ -107,15 +111,21 @@ struct Program {
     /// @brief Called before unloading the dll. Clear any state that can't be
     /// persisted across reloads.
     void onUnload() {
-        _texScene->onUnload();
-
-        _allocator->del(_texScene);
-        _allocator->del(_gameScene);
-        _allocator->del(_rpgScene);
+        for (auto &desc : _scenes) {
+            if (auto tex = dynamic_cast<TexGenScene*>(desc.scene)) {
+                tex->onUnload();
+            }
+            _allocator->del(desc.scene);
+        }
+        _scenes.clear();
     }
 
     bool shouldQuit() {
         return _quit;
+    }
+
+    Scene* scene() {
+        return _scenes[_curScene].scene;
     }
 
     void update(float dt) {
@@ -134,27 +144,22 @@ struct Program {
 
         // change current scene
         _menu.startUpdate({30, 30});
-        std::vector<std::pair<const char*, Scene*>> scenes {
-            {"texgen", _texScene},
-            {"game", _gameScene},
-            {"rpg", _rpgScene},
-        };
-        for (auto &item : scenes) {
+        for (int i = 0; i < _scenes.size(); ++i) {
             _menu.line();
-            if (_menu.button(item.first)) {
-                _curScene = item.second;
+            if (_menu.button(_scenes[i].name)) {
+                _curScene = i;
             }
         }
 
         // update current scene
-        _curScene->update(dt);
+        scene()->update(dt);
     }
 
     void render() {
         Tracer trace("Game::render");
         _renderer->startFrame();
 
-        _curScene->render(_renderer);
+        scene()->render(_renderer);
         _menu.render(_renderer);
 
         _renderer->endFrame();
