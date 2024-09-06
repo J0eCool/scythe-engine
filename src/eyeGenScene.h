@@ -10,6 +10,7 @@
 #include "serialize.h"
 #include "texGen.h"
 #include "ui.h"
+#include "uilib.h"
 #include "vec.h"
 
 #include <SDL2/SDL.h>
@@ -46,9 +47,16 @@ class EyeGenScene : public Scene {
                     Vec2 pos = Vec2 {float(x), float(y)} / texSize;
                     *pixel = Color::black;
                     float w = cornerB.x-cornerA.x;
-                    float t = (pos.x-cornerA.x) / w;
-                    if (t >= 0 && t <= 1) {
-                        *pixel = Color::white;
+                    Vec2 uv {
+                        (pos.x-cornerA.x) / w,
+                        (pos.y-cornerA.y) / w
+                    };
+                    if (uv.x >= 0 && uv.x <= 1) {
+                        float p = 0.875;
+                        float top = 1 - p*uv.x + p*uv.x*uv.x;
+                        if (uv.y < top) {
+                            *pixel = Color::white;
+                        }
                     }
                 }
             }
@@ -79,9 +87,14 @@ public:
     void update(float dt) override {
         _ui.startUpdate({ 120, 30 });
         _ui.labels("GENERATE AN EYE OR SOMETHING", "\n");
-        _ui.labels("CORNER A", _params.cornerA, "\n");
-        _ui.labels("CORNER B", _params.cornerB, "\n");
-        _ui.labels("PUPIL", _params.pupil, "\n");
+        _shouldGenerate |=
+            uiParam(_ui, "A.x", _params.cornerA.x, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "A.y", _params.cornerA.y, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "B.x", _params.cornerB.x, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "B.y", _params.cornerB.y, 0.01f, 0.0f, 1.0f);
     }
 
     void render(Renderer *renderer) override {

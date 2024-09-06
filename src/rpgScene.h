@@ -87,7 +87,7 @@ public:
 
     void initBattle() {
         _player = { "Player", 100, 100, 7, 3, 100, 0.0 };
-        _enemy = { "Emmeny", 25, 25, 6, 2, 90, 0.0 };
+        _enemy = { "Emeney", 25, 25, 6, 2, 90, 0.0 };
     }
 
     void uiCursor() {}
