@@ -4,16 +4,15 @@
 
 #include "color.h"
 #include "common.h"
-#include "ui.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "scene.h"
 #include "serialize.h"
 #include "texGen.h"
+#include "ui.h"
 #include "vec.h"
 
-#include <alloca.h>
 #include <math.h>
-#include <vector>
 
 class TexGenScene : public Scene {
     TexGen *_texGen;
@@ -32,13 +31,13 @@ public:
             _texGen(texGen), _ui(alloc, input) {
     }
 
-    void onLoad() {
+    void onLoad() override {
         _shouldGenerate = true;
 
         loadParams();
     }
 
-    void onUnload() {
+    void onUnload() override {
         _ui.unload();
 
         saveParams();

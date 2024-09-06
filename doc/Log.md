@@ -11,9 +11,19 @@
 		- make a 3x3 grid of platforms at N different elevations
 		- should be able to jump up a delta of 1, or down any number
 		- this creates a digraph, and possible easy backtracking, esp. if we add powerups that increase crossable distances
-- Switch between multiple textures in generator
-- Eyeball Generator
+- Engine improvements
+	- selected scene is remembered across reloads
+	- using `ui.label("\n")` as an alias for `ui.line()` cuts LOC in half
+- [[Eyeball Generator]]
 	- Design
 		- simple eye consists of 3 shapes: cornea, iris, eyebrow
 		- cornea drawn via testing if point is between upper and lower curve
 		- sliders to tweak params
+	- Made EyeGenScene, copied from TexGenScene
+		- we'll want to share the uiParams logic, probably factor out into a uilib.h
+		- for now just hardcode params to get something working
+		- "programmatically creating a texture" is something we're probably going to want to do more of; interfacing directly with SDL_CreateRGBSurface is dubious
+		- most of the application does not want to think in SDL-shaped terms, it's an abstraction-layer mismatch
+- Todo
+	- Switch between multiple textures in generator
+	- Asset auto-reloading

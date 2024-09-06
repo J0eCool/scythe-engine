@@ -1,12 +1,14 @@
 #include "common.h"
-#include "gameScene.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
-#include "rpgScene.h"
 #include "scene.h"
-#include "texGenScene.h"
 #include "ui.h"
 #include "vec.h"
+
+#include "eyeGenScene.h"
+#include "gameScene.h"
+#include "rpgScene.h"
+#include "texGenScene.h"
 
 #include <math.h>
 #include <random>
@@ -67,12 +69,16 @@ struct Program {
     /// Useful for iterating configs at the moment
     void onLoad() {
         auto tex = _allocator->knew<TexGenScene>(&_texGen, _allocator, &_input);
-        tex->onLoad();
         _scenes.push_back({"texgen", tex});
+        _scenes.push_back({"eyegen",
+            _allocator->knew<EyeGenScene>(_allocator, &_input)});
         _scenes.push_back({"game",
             _allocator->knew<GameScene>(&_input, &_texGen, tex)});
         _scenes.push_back({"rpg",
             _allocator->knew<RpgScene>(_allocator, &_input)});
+        for (auto desc : _scenes) {
+            desc.scene->onLoad();
+        }
 
         _input.resetBindings();
 
@@ -111,11 +117,12 @@ struct Program {
     /// @brief Called before unloading the dll. Clear any state that can't be
     /// persisted across reloads.
     void onUnload() {
-        for (auto &desc : _scenes) {
-            if (auto tex = dynamic_cast<TexGenScene*>(desc.scene)) {
-                tex->onUnload();
-            }
-            _allocator->del(desc.scene);
+        // unload in reverse of load order, in case of interscene dependencies,
+        // which we probably shouldn't encourage, but this seems saner than not
+        for (int i = _scenes.size()-1; i >= 0; i--) {
+            auto scene = _scenes[i].scene;
+            scene->onUnload();
+            _allocator->del(scene);
         }
         _scenes.clear();
     }

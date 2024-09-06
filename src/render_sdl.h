@@ -7,6 +7,15 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+#define SMOL_TEXT true
+#if SMOL_TEXT
+    #define FONT_FILE "../data/alpha_small.png"
+    #define FONT_SIZE {8, 8}
+#else
+    #define FONT_FILE "../data/alpha.png"
+    #define FONT_SIZE {21, 12}
+#endif
+
 class Renderer {
     SDL_Renderer* _sdlRenderer;
     SDL_Texture *_alphabetTexture;
@@ -15,8 +24,9 @@ class Renderer {
 
 public:
     Renderer(SDL_Renderer* sdl) : _sdlRenderer(sdl) {
-        SDL_Surface *surf = IMG_Load("../data/alpha.png");
-        assert(surf, "alpha.png failed to load");
+        const char* filename = FONT_FILE;
+        SDL_Surface *surf = IMG_Load(filename);
+        assert(surf, "%s failed to load", filename);
         _alphabetTexture = SDL_CreateTextureFromSurface(_sdlRenderer, surf);
         SDL_FreeSurface(surf);
     }
@@ -97,5 +107,4 @@ public:
         drawImage(texture, pos.x, pos.y, size.x, size.y);
     }
 };
-
-const Vec2 Renderer::fontSize { 12, 28 };
+const Vec2 Renderer::fontSize = FONT_SIZE;

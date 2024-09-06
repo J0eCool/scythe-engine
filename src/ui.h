@@ -228,6 +228,10 @@ public:
     }
 
     void label(const char* text) {
+        if (strcmp(text, "\n") == 0) {
+            line();
+            return;
+        }
         UIElement &elem = nextElem();
         if (elem.kind != uiLabel) {
             elem.kind = uiLabel;
@@ -253,6 +257,11 @@ public:
     void label(float num) {
         char buffer[32];
         sprintf(buffer, "%.2f", num);
+        label(buffer);
+    }
+    void label(Vec2 v) {
+        char buffer[64];
+        sprintf(buffer, "<%.2f, %.2f>", v.x, v.y);
         label(buffer);
     }
     template <typename T, typename ...Ts>

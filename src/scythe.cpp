@@ -20,15 +20,17 @@ std::vector<const char*> filesToScan {
     "../src/color.h",
     "../src/common.h",
     "../src/input_sdl.h",
-    "../src/gameScene.h",
     "../src/render_sdl.h",
-    "../src/rpgScene.h",
     "../src/scene.h",
     "../src/serialize.h",
     "../src/texGen.h",
-    "../src/texGenScene.h",
     "../src/ui.h",
     "../src/vec.h",
+
+    "../src/eyeGenScene.h",
+    "../src/gameScene.h",
+    "../src/rpgScene.h",
+    "../src/texGenScene.h",
 
     "../src/program.cpp",
 };

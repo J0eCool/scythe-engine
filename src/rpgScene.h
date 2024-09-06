@@ -37,14 +37,16 @@ public:
         initBattle();
     }
 
+    void onUnload() override {
+        _ui.unload();
+    }
+
     void update(float dt) override {
         _ui.startUpdate();
 
         _ui.region({240, 120});
         uiFighter(_player);
-        _ui.line();
-        _ui.labels("xp: ", _xp);
-        _ui.line();
+        _ui.labels("xp: ", _xp, "\n");
         if (_ui.button("attack")) {
             _enemy.hp -= max(0, _player.attack - _enemy.defense);
             if (_enemy.hp <= 0) {
@@ -70,18 +72,17 @@ public:
     }
 
     void uiFighter(Fighter& fighter) {
-        _ui.label(fighter.name);
-        _ui.line();
-        _ui.labels("HP: ", fighter.hp, "/", fighter.maxHp);
-        _ui.line();
-        _ui.labels("ATK: ", fighter.attack);
-        _ui.line();
-        _ui.labels("DEF: ", fighter.defense);
+        _ui.labels(fighter.name, "\n");
+        _ui.labels("HP: ", fighter.hp, "/", fighter.maxHp, "\n");
+        _ui.labels("ATK: ", fighter.attack, "\n");
+        _ui.labels("DEF: ", fighter.defense, "\n");
     }
 
     void render(Renderer* renderer) override {
         renderer->background({0x10, 0x20, 0xc0});
         _ui.render(renderer);
+
+        renderer->drawText("Remember, you are Free", {800, 900});
     }
 
     void initBattle() {
