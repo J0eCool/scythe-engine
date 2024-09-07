@@ -24,6 +24,8 @@
 		- for now just hardcode params to get something working
 		- "programmatically creating a texture" is something we're probably going to want to do more of; interfacing directly with SDL_CreateRGBSurface is dubious
 		- most of the application does not want to think in SDL-shaped terms, it's an abstraction-layer mismatch
+	- Need to enable different shapes
+		- idea is to turn the space between both eye corners into a UV coordinate system then do simple math from there
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading

@@ -18,19 +18,21 @@
 
 class EyeGenScene : public Scene {
     UI _ui;
-
-    int colorIdx = 0; // current gradient step index
-
-    // params affecting display
-    int renderSize = 1024; // NxN size of total display area on screen
-    int gridSize = 16; // render an NxN grid of textures
+    Input* _input;
 
     SDL_Texture *tex = nullptr;
+
+    Color bgColor {0x60, 0x1f, 0x80};
+    Vec2 previewPos {800, 50};
+    Vec2 previewSize {1024, 1024};
 
     bool _shouldGenerate = true;
     struct EyeParams {
         Vec2 cornerA, cornerB;
         Vec2 pupil;
+        float curveTop, curveBot;
+        float pupilSize, iris;
+        Color color;
 
         SDL_Texture* generateTexture(Renderer* renderer) const {
             int texSize = 256;
@@ -52,10 +54,15 @@ class EyeGenScene : public Scene {
                         (pos.y-cornerA.y) / w
                     };
                     if (uv.x >= 0 && uv.x <= 1) {
-                        float p = 0.875;
-                        float top = 1 - p*uv.x + p*uv.x*uv.x;
-                        if (uv.y < top) {
+                        float top = curveTop*uv.x*(uv.x - 1);
+                        float bot = curveBot*uv.x*(1 - uv.x);
+                        if (uv.y > top && uv.y < bot) {
                             *pixel = Color::white;
+                            float r = (pos - pupil).len();
+                            if (r < (pupilSize/2)) {
+                                *pixel = r/(pupilSize/2) < (1-iris)
+                                    ? Color::black : color;
+                            }
                         }
                     }
                 }
@@ -64,18 +71,19 @@ class EyeGenScene : public Scene {
         }
     } _params;
 
-    Color bgColor {0x60, 0x1f, 0x80};
-
 public:
     EyeGenScene(Allocator *alloc, Input *input) :
-            _ui(alloc, input) {
+            _input(input), _ui(alloc, input) {
     }
 
     void onLoad() override {
         _shouldGenerate = true;
         _params = {
-            {0.3, 0.5}, {0.7, 0.5},
+            {0.1, 0.5}, {0.9, 0.5},
             {0.5, 0.5},
+            0.6, 0.9,
+            0.35, 0.3,
+            {0x10, 0x20, 0x95},
         };
     }
 
@@ -95,6 +103,29 @@ public:
             uiParam(_ui, "B.x", _params.cornerB.x, 0.01f, 0.0f, 1.0f);
         _shouldGenerate |=
             uiParam(_ui, "B.y", _params.cornerB.y, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "curveTop", _params.curveTop, 0.01f, -1.0f, 3.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "curveBot", _params.curveBot, 0.01f, -1.0f, 3.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "P.x", _params.pupil.x, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "P.y", _params.pupil.y, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "pupilSize", _params.pupilSize, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |=
+            uiParam(_ui, "iris", _params.iris, 0.01f, 0.0f, 1.0f);
+        _shouldGenerate |= uiColor(_ui, _params.color);
+
+        if (_input->isHeld("click")) {
+            auto mouse = _input->getMousePos();
+            auto pos = (mouse - previewPos)/previewSize;
+            _ui.labels("mouse click pos", mouse, "->", pos, "\n");
+            if (in_rect(pos, {0, 0}, {1, 1})) {
+                _shouldGenerate = true;
+                _params.pupil = pos;
+            }
+        }
     }
 
     void render(Renderer *renderer) override {
@@ -104,7 +135,7 @@ public:
         }
 
         renderer->background(bgColor);
-        renderer->drawImage(tex, {800, 50}, {1024, 1024});
+        renderer->drawImage(tex, previewPos, previewSize);
 
         _ui.render(renderer);
     }
