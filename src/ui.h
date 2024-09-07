@@ -77,9 +77,7 @@ T sliderLerp(float t, T lo, T hi) {
     return round((1-t)*lo + t*hi);
 }
 template <>
-float sliderLerp<float>(float t, float lo, float hi) {
-    return lerp(t, lo, hi);
-}
+float sliderLerp<float>(float t, float lo, float hi);
 
 struct UIRect {
     Color color;

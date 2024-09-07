@@ -32,6 +32,9 @@
 	- ideally everything Just Works and is totally transparent to the user (me), meaning I don't have to manually set up build configuration/dependencies - though we can hardcode things for now and automate those as a v2
 		- in theory we can just scan each file for `#include`s and build a dependency graph that way
 	- before anything we'll need to split .h into .h and .cpp
+		- common.cpp being used in both build-scythe.sh and builder.h is a big ole red flag
+		- ideally we're not duplicating the subset of our build info that scythe.cpp needs
+		- for now just hacking stuff into eyeGenScene.cpp to avoid making more .o files until stuff works...
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading

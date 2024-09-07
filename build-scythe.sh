@@ -19,4 +19,5 @@ cp $SDLBIN/SDL2_image.dll out/
 cp $SDLBIN/libpng16-16.dll out/
 cp $SDLBIN/zlib1.dll out/
 
-g++ -o out/scythe src/scythe.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK} ${DBG_FLAGS}
+g++ -c -o out/common.o src/common.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK} ${DBG_FLAGS}
+g++ -o out/scythe out/common.o src/scythe.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK} ${DBG_FLAGS}

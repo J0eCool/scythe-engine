@@ -53,13 +53,10 @@ void assert(bool cond, const char* msg, Ts... args) {
     }
 }
 
-void assert_SDL(bool cond, const char* msg) {
-    if (!cond) {
-        printf("Fatal Error: %s\nSDL_Error: %s\n", msg, SDL_GetError());
-        exit(1);
-    }
-}
-bool logging_enabled = true;
+void assert_SDL(bool cond, const char* msg);
+
+extern bool logging_enabled;
+
 template <typename... Ts>
 void log(const char* fmt, Ts... args) {
     if (logging_enabled) {
@@ -68,7 +65,7 @@ void log(const char* fmt, Ts... args) {
     }
 }
 
-bool debug_isTracing = false;
+extern bool debug_isTracing;
 // for debugging crashes
 class Tracer {
     const char* _label;
@@ -175,9 +172,7 @@ T smoothstep(float t, T lo, T hi) {
 
 /// @brief The fractional part of some number
 /// @return value between [0.0, 1.0]
-float frac(float t) {
-    return fmodf(t, 1.0f);
-}
+float frac(float t);
 
 template <typename T>
 T slerp(float t, T a, T b) {

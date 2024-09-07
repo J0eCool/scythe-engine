@@ -117,12 +117,8 @@ Vec2x<T> max(Vec2x<T> a, Vec2x<T> b) {
     };
 }
 
-Vec2i floorv(Vec2f v) {
-    return { (int)floor(v.x), (int)floor(v.y) };
-}
-Vec2i ceilv(Vec2f v) {
-    return { (int)ceil(v.x), (int)ceil(v.y) };
-}
+Vec2i floorv(Vec2f v);
+Vec2i ceilv(Vec2f v);
 
 struct Rect {
     Vec2 pos;
@@ -134,10 +130,7 @@ struct Rect {
 /// @param rPos upper-left corner of the rectangle
 /// @param rSize rectangle's size
 /// @return `true` iff the point is within the rect
-bool in_rect(Vec2 p, Vec2 rPos, Vec2 rSize) {
-    return p.x >= rPos.x && p.x <= rPos.x + rSize.x &&
-        p.y >= rPos.y && p.y <= rPos.y + rSize.y;
-}
+bool in_rect(Vec2 p, Vec2 rPos, Vec2 rSize);
 
 /// @brief Determines whether a point is within an axis-aligned rectangle
 /// @tparam R any type with Vec2 fields `pos` and `size`

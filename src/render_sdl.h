@@ -107,4 +107,3 @@ public:
         drawImage(texture, pos.x, pos.y, size.x, size.y);
     }
 };
-const Vec2 Renderer::fontSize = FONT_SIZE;

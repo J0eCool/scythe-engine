@@ -38,30 +38,9 @@ bool uiParam(UI &ui, const char* text, T &val, T dec, T inc, T lo, T hi) {
 /// @param ifOn text to show when `option` is `true`
 /// @param ifOff text when `option` is `false`
 /// @return `true` when clicked (for callback purposes)
-bool uiToggle(UI &ui, bool &option, const char* ifOn, const char* ifOff) {
-    if (ui.button(option ? ifOn : ifOff)) {
-        option = !option;
-        return true;
-    }
-    return false;
-}
+bool uiToggle(UI &ui, bool &option, const char* ifOn, const char* ifOff);
 
 /// @brief bootleg color picker
 /// @param color color to edit
 /// @return `true` when modified
-bool uiColor(UI &ui, Color &color) {
-    bool changed = false;
-    ui.align(160);
-    ui.rect(color, Vec2{32});
-    const int delta = 5;
-    changed |= uiParam(ui, "R", color.r,
-        Uint8(color.r-delta), Uint8(color.r+delta),
-        Uint8(0), Uint8(255));
-    changed |= uiParam(ui, "G", color.g,
-        Uint8(color.g-delta), Uint8(color.g+delta),
-        Uint8(0), Uint8(255));
-    changed |= uiParam(ui, "B", color.b,
-        Uint8(color.b-delta), Uint8(color.b+delta),
-        Uint8(0), Uint8(255));
-    return changed;
-}
+bool uiColor(UI &ui, Color &color);

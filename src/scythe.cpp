@@ -22,11 +22,8 @@ int main(int argc, char** argv) {
     }
 
     log("Building game.dll...");
-    // initialize last modified times for each file we care about
-    for (auto filename : filesToScan) {
-        lastModifiedTimes[filename] = getFileModifiedTime(filename);
-    }
-    assert(buildGame(), "failed to build game.dll on launch");
+    Builder builder;
+    assert(builder.buildGame(), "failed to build game.dll on launch");
     const char* dllName = "game.dll";
     GameDylib dll(dllName);
 
@@ -37,17 +34,11 @@ int main(int argc, char** argv) {
     dll.onLoad(game);
     // Main game loop
     while (!dll.shouldQuit(game)) {
-        // check program.cpp for changes
-        if (shouldRebuild()) {
-            Timer buildTime;
-
-            log("rebuilding game.dll...");
-            if (check(buildGame(), "failed to build dll, continuing with old code")) {
-                log("  game built in %fs", buildTime.elapsed());
-                dll.onUnload(game);
-                dll.reload();
-                dll.onLoad(game);
-            }
+        // reload dll if it changes
+        if (builder.tryRebuild()) {
+            dll.onUnload(game);
+            dll.reload();
+            dll.onLoad(game);
         }
 
         // Update logic
