@@ -178,6 +178,10 @@ SDL_Texture* EyeGenScene::EyeParams::generateTexture(Renderer* renderer) const {
         0, texSize, texSize, bpp,
         // RGBA bitmasks; A mask is special
         0xff, 0xff << 8, 0xff << 16, 0);
+    Vec2 ba = cornerB - cornerA;
+    Vec2 right = ba.normalized();
+    // {-y, x} is 90deg counterclockwise from {x, y}
+    Vec2 up = Vec2{-right.y, right.x};
     for (int x = 0; x < texSize; ++x) {
         for (int y = 0; y < texSize; ++y) {
             Color *pixel = (Color*)((Uint8*)surface->pixels
@@ -185,11 +189,14 @@ SDL_Texture* EyeGenScene::EyeParams::generateTexture(Renderer* renderer) const {
                 + x*surface->format->BytesPerPixel);
             Vec2 pos = Vec2 {float(x), float(y)} / texSize;
             *pixel = Color::black;
-            float w = cornerB.x-cornerA.x;
+
+            Vec2 pa = pos-cornerA;
             Vec2 uv {
-                (pos.x-cornerA.x) / w,
-                (pos.y-cornerA.y) / w
+                // dot product projects the components of pa onto the basis vecs
+                pa.dot(right) / ba.len(),
+                pa.dot(up) / ba.len(),
             };
+
             if (uv.x >= 0 && uv.x <= 1) {
                 float top = curveTop*uv.x*(uv.x - 1);
                 float bot = curveBot*uv.x*(1 - uv.x);
@@ -204,7 +211,9 @@ SDL_Texture* EyeGenScene::EyeParams::generateTexture(Renderer* renderer) const {
             }
         }
     }
-    return SDL_CreateTextureFromSurface(renderer->sdl(), surface);
+    auto tex = SDL_CreateTextureFromSurface(renderer->sdl(), surface);
+    SDL_FreeSurface(surface);
+    return tex;
 }
 
 EyeGenScene::EyeGenScene(Allocator *alloc, Input *input) :
@@ -252,12 +261,16 @@ void EyeGenScene::update(float dt) {
         uiParam(_ui, "iris", _params.iris, 0.01f, 0.0f, 1.0f);
     _shouldGenerate |= uiColor(_ui, _params.color);
 
-    if (_input->isHeld("click")) {
-        auto mouse = _input->getMousePos();
-        auto pos = (mouse - previewPos)/previewSize;
-        if (in_rect(pos, {0, 0}, {1, 1})) {
+    auto mouse = _input->getMousePos();
+    auto pos = (mouse - previewPos)/previewSize;
+    if (in_rect(pos, {0, 0}, {1, 1})) {
+        if (_input->isHeld("click")) {
             _shouldGenerate = true;
             _params.pupil = pos;
+        }
+        if (_input->isHeld("rclick")) {
+            _shouldGenerate = true;
+            _params.cornerB = pos;
         }
     }
 }
