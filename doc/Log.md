@@ -26,6 +26,12 @@
 		- most of the application does not want to think in SDL-shaped terms, it's an abstraction-layer mismatch
 	- Need to enable different shapes
 		- idea is to turn the space between both eye corners into a UV coordinate system then do simple math from there
+	- maybe save params across reloads?
+- Incremental Compilation
+	- we're taking 4.2s per rebuild, it's probably time to split things up into individual object files, which *should* speed things up considerably in the common case where we're just iterating on a single scene
+	- ideally everything Just Works and is totally transparent to the user (me), meaning I don't have to manually set up build configuration/dependencies - though we can hardcode things for now and automate those as a v2
+		- in theory we can just scan each file for `#include`s and build a dependency graph that way
+	- before anything we'll need to split .h into .h and .cpp
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading
