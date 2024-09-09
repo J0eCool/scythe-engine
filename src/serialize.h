@@ -87,5 +87,5 @@ static bool loadFromFile(const char* filename, T &item) {
 }
 
 TEST(foo, {
-    TEST_EQ(2+2, 4, "addition works");
+    TEST_EQ_MSG(2+2, 4, "addition works");
 })

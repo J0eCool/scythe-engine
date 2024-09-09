@@ -37,7 +37,9 @@ int push_test_case(TestCase tc) {
     } \
     static int test__##name##__id = push_test_case(TestCase {#name, test__##name});
 
-#define TEST_EQ(actual, expected, message) \
+#define TEST_EQ(actual, expected) \
+    TEST_EQ_MSG(actual, expected, #actual " != " #expected)
+#define TEST_EQ_MSG(actual, expected, message) \
     if (actual != expected) { \
         return TestResult { Failed, message }; \
     }

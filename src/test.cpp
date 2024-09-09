@@ -3,6 +3,7 @@
 // the test app is always built with testing enabled
 #define TESTING
 
+#include "builder.h"
 #include "serialize.h"
 
 #include <stdio.h>

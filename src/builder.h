@@ -3,9 +3,13 @@
 #include "common.h"
 
 #include <map>
+#include <set>
 #include <stdio.h>
 #include <vector>
 #include <windows.h>
+
+// we want to track every source file and any transitive dependencies
+// so create a graph by scanning files for #includes
 
 class Builder {
     // List of filenames to watch for changes to rebuild game.dll
@@ -101,10 +105,13 @@ public:
         // build
         for (auto obj : objs) {
             std::string cmd = "g++ -c -o "+obj+".o ../src/"+obj+".cpp" + flags;
+            Timer time;
             log("building obj %s: %s", obj.c_str(), cmd.c_str());
             // nonzero status means something failed
             fflush(stdout);
-            if (system(cmd.c_str())) {
+            auto success = system(cmd.c_str()) == 0;
+            log("  build time: %fs", time.elapsed());
+            if (!success) {
                 return false;
             }
         }
@@ -115,10 +122,63 @@ public:
             cmd += " "+obj+".o";
         }
         cmd += flags;
-        log("building game.dll: %s", cmd.c_str());
+        Timer linkTime;
+        log("linking game.dll: %s", cmd.c_str());
         fflush(stdout);
+        log("  link time: %fs", linkTime.elapsed());
         bool success = system(cmd.c_str()) == 0;
-        log("  build completed in %fs", buildTime.elapsed());
+        log("Total build time: %fs", buildTime.elapsed());
         return success;
     }
 };
+
+// corresponds to 1 source file, .cpp or .h
+struct SourceFile {
+    std::string filename;
+    std::set<SourceFile*> includes;
+
+    void scanForIncludes() {
+        //TODO: move elsewhere because we want references to existing source files
+        includes.clear();
+        // pseudocode
+        // for (auto line : open(filename).lines()) {
+        //     if (line.startsWith("#include \"") && line.endsWith("\"\n")) {
+        //         includes.insert(line.substring(9, -2));
+        //     }
+        // }
+    }
+
+    bool needsRebuild(std::set<std::string> const& changed) {
+        if (changed.find(filename) != changed.end()) {
+            return true;
+        }
+        for (auto inc : includes) {
+            if (inc->needsRebuild(changed)) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+// corresponds to 1 built file, .o or .exe
+struct BuildObject {
+    std::string cmd;
+};
+
+#include "test.h"
+
+TEST(buildLogic, {
+    std::vector<SourceFile> files;
+    SourceFile foo {"foo.h", {}};
+    SourceFile bar {"bar.h", {&foo}};
+    SourceFile baz {"baz.h", {&bar}};
+
+    TEST_EQ(foo.needsRebuild({}), false);
+    TEST_EQ(foo.needsRebuild({"foo.h"}), true);
+    TEST_EQ(bar.needsRebuild({"foo.h"}), true);
+    TEST_EQ(foo.needsRebuild({"bar.h"}), false);
+    TEST_EQ(bar.needsRebuild({"bar.h"}), true);
+    TEST_EQ_MSG(baz.needsRebuild({"foo.h"}), true, "transitive dependencies");
+
+})
