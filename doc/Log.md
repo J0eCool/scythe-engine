@@ -35,6 +35,9 @@
 		- common.cpp being used in both build-scythe.sh and builder.h is a big ole red flag
 		- ideally we're not duplicating the subset of our build info that scythe.cpp needs
 		- for now just hacking stuff into eyeGenScene.cpp to avoid making more .o files until stuff works...
+- revamp build system
+	- unify build logic between scythe.exe, game.dll, and test.exe
+	- build.py with different arguments for build-and-run vs test
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading
