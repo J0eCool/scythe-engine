@@ -39,6 +39,7 @@ class Builder {
     };
     // The last time each file was modified
     std::map<const char*, FILETIME> lastModifiedTimes;
+    const char* gameDll = "game.dll";
 
 public:
     Builder() {
@@ -46,6 +47,7 @@ public:
         for (auto filename : filesToScan) {
             lastModifiedTimes[filename] = getFileModifiedTime(filename);
         }
+        lastModifiedTimes[gameDll] = getFileModifiedTime(gameDll);
     }
 
     /// @brief Get the time that a file was last modified
@@ -60,21 +62,31 @@ public:
         return modified;
     }
 
+    // caution, stateful
+    // we're deprecating this so who cares
+    bool checkFileChange(const char* filename) {
+        FILETIME last = lastModifiedTimes[filename];
+        FILETIME modified = getFileModifiedTime(filename);
+        if (modified.dwLowDateTime != last.dwLowDateTime ||
+                modified.dwHighDateTime != last.dwHighDateTime) {
+            lastModifiedTimes[filename] = modified;
+            return true;
+        }
+        return false;
+    }
+
     /// @brief Whether to rebuild the game dll
     /// @return true if any source files have changed
     bool shouldRebuild() {
         bool changed = false;
         for (auto filename : filesToScan) {
-            FILETIME last = lastModifiedTimes[filename];
-            FILETIME modified = getFileModifiedTime(filename);
-            if (modified.dwLowDateTime != last.dwLowDateTime ||
-                    modified.dwHighDateTime != last.dwHighDateTime) {
-                lastModifiedTimes[filename] = modified;
-                // don't return early to update all changed file times in one build
-                changed = true;
-            }
+            changed |= checkFileChange(filename);
         }
         return changed;
+    }
+
+    bool shouldReload() {
+        return checkFileChange(gameDll);
     }
 
     /// @brief rebuilds the game if possible

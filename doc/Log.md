@@ -38,6 +38,8 @@
 - revamp build system
 	- unify build logic between scythe.exe, game.dll, and test.exe
 	- build.py with different arguments for build-and-run vs test
+- Scriptable Particle Effects
+	- MVP quick turnaround build stuff: build.py watches one file, scythe watches the rest, change scythe to separate rebuild and reload, test dll for modifications directly
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading

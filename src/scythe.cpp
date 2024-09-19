@@ -35,7 +35,8 @@ int main(int argc, char** argv) {
     // Main game loop
     while (!dll.shouldQuit(game)) {
         // reload dll if it changes
-        if (builder.tryRebuild()) {
+        builder.tryRebuild();
+        if (builder.shouldReload()) {
             dll.onUnload(game);
             dll.reload();
             dll.onLoad(game);

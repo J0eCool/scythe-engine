@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 
 class BuildTarget(object):
@@ -9,20 +10,27 @@ class BuildTarget(object):
     def needs_build(self):
         return False
 
-SDL2_PATH = '../../SDL2-2.0.14/i686-w64-mingw32'
+SDL2_PATH = os.path.join('..', '..', 'SDL2-2.0.14', 'i686-w64-mingw32')
 INCLUDE='-I{}/include'.format(SDL2_PATH)
 LIB='-L{}/lib'.format(SDL2_PATH)
 FLAGS=''
 LINK='-lmingw32 -lSDL2main -lSDL2 -lSDL2_image'
 DBG_FLAGS='-fdiagnostics-color=always -g'
 
-def cleanup():
-    # TODO
-    pass
+def create_outdir():
+    os.makedirs('out', exist_ok=True)
 
 def copy_dlls():
-    # TODO
-    pass
+    """Copies third-party SDL .dll files from SDL2_PATH"""
+    sdlbin = os.path.join(SDL2_PATH, 'bin')
+    dlls = [
+        'SDL2.dll',
+        'SDL2_image.dll',
+        'libpng16-16.dll',
+        'zlib1.dll',
+    ]
+    for dll in dlls:
+        shutil.copy(os.path.join(sdlbin, dll), 'out')
 
 def build_scythe():
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
@@ -39,6 +47,8 @@ def build_scythe():
     return True
 
 def main(args: list[str]):
+    create_outdir()
+    copy_dlls()
     if not build_scythe():
         return 1
 
