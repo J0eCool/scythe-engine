@@ -32,6 +32,7 @@ class Builder {
         "../src/eyeGenScene.h",
         "../src/eyeGenScene.cpp",
         "../src/gameScene.h",
+        // "../src/particleScene.h", // built with build.py
         "../src/rpgScene.h",
         "../src/texGenScene.h",
 
@@ -40,6 +41,8 @@ class Builder {
     // The last time each file was modified
     std::map<const char*, FILETIME> lastModifiedTimes;
     const char* gameDll = "game.dll";
+    const char* lockfile = "game.dll.lock";
+    bool _needsReload = false;
 
 public:
     Builder() {
@@ -50,6 +53,7 @@ public:
         lastModifiedTimes[gameDll] = getFileModifiedTime(gameDll);
     }
 
+private:
     /// @brief Get the time that a file was last modified
     FILETIME getFileModifiedTime(const char* filename) {
         FILETIME modified;
@@ -62,6 +66,12 @@ public:
         return modified;
     }
 
+    bool fileExists(const char* filename) {
+        HANDLE file = CreateFile(filename, 0, 0, nullptr,
+            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        return file != INVALID_HANDLE_VALUE;
+    }
+
     // caution, stateful
     // we're deprecating this so who cares
     bool checkFileChange(const char* filename) {
@@ -70,11 +80,15 @@ public:
         if (modified.dwLowDateTime != last.dwLowDateTime ||
                 modified.dwHighDateTime != last.dwHighDateTime) {
             lastModifiedTimes[filename] = modified;
+            printf("%s was modified, %d%d -> %d%d\n",
+                filename, last.dwHighDateTime, last.dwLowDateTime,
+                modified.dwHighDateTime, modified.dwLowDateTime);
             return true;
         }
         return false;
     }
 
+public:
     /// @brief Whether to rebuild the game dll
     /// @return true if any source files have changed
     bool shouldRebuild() {
@@ -86,7 +100,16 @@ public:
     }
 
     bool shouldReload() {
-        return checkFileChange(gameDll);
+        if (checkFileChange(gameDll)) {
+            _needsReload = true;
+        }
+        bool ret = _needsReload;
+        if (fileExists(lockfile)) {
+            ret = false;
+        } else {
+            _needsReload = false;
+        }
+        return ret;
     }
 
     /// @brief rebuilds the game if possible
@@ -111,6 +134,8 @@ public:
         std::vector<std::string> objs {
             "common",
             "eyeGenScene",
+            // we omit it from files to scan, but we do need to make sure it's built
+            "particleScene",
             "program",
         };
 
@@ -137,8 +162,8 @@ public:
         Timer linkTime;
         log("linking game.dll: %s", cmd.c_str());
         fflush(stdout);
-        log("  link time: %fs", linkTime.elapsed());
         bool success = system(cmd.c_str()) == 0;
+        log("  link time: %fs", linkTime.elapsed());
         log("Total build time: %fs", buildTime.elapsed());
         return success;
     }

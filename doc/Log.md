@@ -40,6 +40,9 @@
 	- build.py with different arguments for build-and-run vs test
 - Scriptable Particle Effects
 	- MVP quick turnaround build stuff: build.py watches one file, scythe watches the rest, change scythe to separate rebuild and reload, test dll for modifications directly
+	- aggravating! so that's mostly done, except for the eentsy tiny detail that we need a lockfile; the `modified` field (seems to) get updated at the *start* of writing out the .dll, so it fails to load
+	- aight that worked well enough, calling that sufficiently functional
+	- one last nice touch would be to add a timer so we can see how much time we're saving and feel good about ourselves - buildtime is a metric I care about, so measure it
 - Todo
 	- Switch between multiple textures in generator
 	- Asset auto-reloading

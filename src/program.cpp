@@ -7,6 +7,7 @@
 
 #include "eyeGenScene.h"
 #include "gameScene.h"
+#include "particleScene.h"
 #include "rpgScene.h"
 #include "texGenScene.h"
 
@@ -76,6 +77,8 @@ struct Program {
             _allocator->knew<GameScene>(&_input, &_texGen, tex)});
         _scenes.push_back({"rpg",
             _allocator->knew<RpgScene>(_allocator, &_input)});
+        _scenes.push_back({"particles",
+            _allocator->knew<ParticleScene>(_allocator, &_input)});
         for (auto desc : _scenes) {
             desc.scene->onLoad();
         }
