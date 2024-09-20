@@ -67,7 +67,7 @@ void ParticleScene::createParticles() {
         Vec2 pos { 900, 512 };
         float ang = TAU*i/_params.numParticles;
         Vec2 vel = Vec2 { cos(ang), sin(ang) } * 500;
-        float life = 1.25;
+        float life = 1.2;
         _particles.push_back({pos, vel, life, 0.0});
     }
 }

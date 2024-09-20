@@ -80,9 +80,6 @@ private:
         if (modified.dwLowDateTime != last.dwLowDateTime ||
                 modified.dwHighDateTime != last.dwHighDateTime) {
             lastModifiedTimes[filename] = modified;
-            printf("%s was modified, %d%d -> %d%d\n",
-                filename, last.dwHighDateTime, last.dwLowDateTime,
-                modified.dwHighDateTime, modified.dwLowDateTime);
             return true;
         }
         return false;

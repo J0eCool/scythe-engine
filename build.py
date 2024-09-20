@@ -102,12 +102,13 @@ def build_and_run():
     return 0
 
 def watch_and_build():
-    # ok for now just build particleScene.o and relink game.dll, no watching yet
-    # don't tell anyone
-    if not build_obj('particleScene'):
-        return 1
-    if not link_game():
-        return 1
+    while True:
+        if os.path.getmtime('src/particleScene.cpp') > os.path.getmtime('out/particleScene.o'):
+            if not build_obj('particleScene'):
+                continue
+            if not link_game():
+                continue
+        time.sleep(0.1)
     return 0
 
 def run_program(prog):
