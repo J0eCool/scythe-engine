@@ -10,6 +10,47 @@
 
 #include <SDL2/SDL.h>
 
+class Rng {
+    std::ranlux24_base _rand_engine;
+public:
+    Rng() {}
+
+    void seed() {
+        // random_device seems to give a consistent value in dll, so offset by
+        // ticks elapsed since program start to get new results on each reload
+        std::random_device r;
+        auto seed = r() + SDL_GetTicks();
+        _rand_engine = std::ranlux24_base(seed);
+    }
+    void seed(uint32_t s) {
+        _rand_engine.seed(s);
+    }
+
+    int Int(int limit = INT32_MAX) {
+        return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
+    }
+    float Float(float limit = 1.0) {
+        return std::uniform_real_distribution<float>(0, limit)(_rand_engine);
+    }
+    float Float(float lo, float hi) {
+        return lerp(Float(), lo, hi);
+    }
+    Uint8 Byte() {
+        return Int(0x100);
+    }
+    /// @brief Generate a random `true` or `false` value
+    /// @param p probability of a `true` result
+    bool Bool(float p = 0.5) {
+        return Float() < p;
+    }
+    /// @brief Approximate a normal distribution by taking the average of 4 rolls.
+    /// This biases the distribution towards 0.5
+    /// @return A value between 0 and 1
+    float Normalish() {
+        return (Float() + Float() + Float() + Float()) / 4;
+    }
+};
+
 // data per grid cell
 struct NoiseSample {
     float v; // scalar noise value
@@ -47,9 +88,10 @@ struct TexParams {
 Serialize<TexParams> serialize(TexParams &params);
 
 class TexGen {
-    std::ranlux24_base _rand_engine;
     std::vector<SDL_Texture*> _textures;
     std::vector<int> _texIndices;
+
+    Rng rng;
 
 public:
     TexParams texParams;
@@ -65,46 +107,19 @@ public:
     }
 
     void seed() {
-        // random_device seems to give a consistent value in dll, so offset by
-        // ticks elapsed since program start to get new results on each reload
-        std::random_device r;
-        auto seed = r() + SDL_GetTicks();
-        _rand_engine = std::ranlux24_base(seed);
-    }
-private:
-    int randInt(int limit = INT32_MAX) {
-        return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
-    }
-    float randFloat(float limit = 1.0) {
-        return std::uniform_real_distribution<float>(0, limit)(_rand_engine);
-    }
-    float randFloat(float lo, float hi) {
-        return lerp(randFloat(), lo, hi);
-    }
-    Uint8 randByte() {
-        return randInt(0x100);
-    }
-    /// @brief Generate a random `true` or `false` value
-    /// @param p probability of a `true` result
-    bool randBool(float p = 0.5) {
-        return randFloat() < p;
-    }
-    /// @brief Approximate a normal distribution by taking the average of 4 rolls.
-    /// This biases the distribution towards 0.5
-    /// @return A value between 0 and 1
-    float randNormalish() {
-        return (randFloat() + randFloat() + randFloat() + randFloat()) / 4;
+        rng.seed();
     }
 
+private:
     void generateNoise(NoiseSample* noise, int n) {
         for (int y = 0; y < n; ++y) {
             for (int x = 0; x < n; ++x) {
                 NoiseSample &s = noise[y*n + x];
                 s = {
-                    randFloat(0.0, 1.0),
-                    { randByte(), randByte(), randByte(), 0xff },
-                    { randFloat(0.3, 1.0),
-                      randFloat(0.3, 1.0),
+                    rng.Float(0.0, 1.0),
+                    { rng.Byte(), rng.Byte(), rng.Byte(), 0xff },
+                    { rng.Float(0.3, 1.0),
+                      rng.Float(0.3, 1.0),
                     },
                 };
                 s.v = sin(PI*(s.v-0.5) + TAU*noiseAnimTime)/2+0.5f;
@@ -249,7 +264,7 @@ public:
         Tracer("Game::generateTextures");
         Timer timer;
 
-        _rand_engine.seed(texParams.seed);
+        rng.seed(texParams.seed);
 
         for (auto tex : _textures) {
             SDL_DestroyTexture(tex);
@@ -318,7 +333,7 @@ public:
         noiseAnimTime = 0;
         gradAnimTime = 0;
         tileAnimTime = 0;
-        texParams.seed = _rand_engine();
+        texParams.seed = rng.Int();
     }
 
     SDL_Texture* textureForIndex(int index) {
@@ -326,7 +341,7 @@ public:
         assert(_texIndices.size() < index+100'000,
             "don't generate more than 100,000 texture indices at a time pls");
         while (index >= _texIndices.size()) {
-            _texIndices.push_back(randInt(_textures.size()));
+            _texIndices.push_back(rng.Int(_textures.size()));
         }
         return _textures[_texIndices[index]];
     }
