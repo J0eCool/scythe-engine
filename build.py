@@ -20,6 +20,17 @@ DBG_FLAGS='-fdiagnostics-color=always -g'
 
 LOCKFILE='out/game.dll.lock'
 
+def Program(prog):
+    print('hinkus')
+    def f():
+        print('kikfkskkus')
+        start = time.time()
+        ret = prog()
+        dt = time.time() - start
+        print("Total time elapsed: {:.2f}s".format(dt))
+        return ret
+    return f
+
 def create_outdir():
     os.makedirs('out', exist_ok=True)
 
@@ -31,7 +42,7 @@ def release_lock():
     try:
         os.remove(LOCKFILE)
     except Exception as e:
-        print("exception releasing lock: ", e)
+        pass
 
 def copy_dlls():
     """Copies third-party SDL .dll files from SDL2_PATH"""
@@ -90,6 +101,7 @@ def build_scythe():
         return False
     return True
 
+@Program
 def build_and_run():
     create_outdir()
     copy_dlls()
@@ -101,8 +113,13 @@ def build_and_run():
     os.system('scythe')
     return 0
 
+@Program
 def watch_and_build():
+    dependencies = scan_dependencies('program')
     while True:
+        # update file-changed times
+        # if files changed, re-scan dependencies (which can find new files)
+        # for all known files, rebuild only if stale
         if os.path.getmtime('src/particleScene.cpp') > os.path.getmtime('out/particleScene.o'):
             if not build_obj('particleScene'):
                 continue
@@ -111,21 +128,44 @@ def watch_and_build():
         time.sleep(0.1)
     return 0
 
-def run_program(prog):
-    start = time.time()
-    ret = prog()
-    dt = time.time() - start
-    print("Total time elapsed: {:.2f}s".format(dt))
-    return ret
+@Program
+def walk_build_tree():
+    import pprint
+    # given program.o, can we find all dependencies?
+    dependencies = scan_dependencies('program')
+    pprint.pprint(dependencies)
+
+def scan_dependencies(component_name):
+    obj = os.path.join('out', component_name+'.o')
+    src = os.path.join('src', component_name+'.cpp')
+    to_scan = [src]
+    dependencies = {}
+    for filename in to_scan:
+        deps = []
+        dependencies[filename] = deps
+        with open(filename) as f:
+            if filename.endswith('.h') and os.path.exists(filename[:-1]+'cpp'):
+                to_scan.append(filename[:-1]+'cpp')
+            for line in f.readlines():
+                if line.startswith('#include "') and line.endswith('"\n'):
+                    # TODO: need to actually locate files in question
+                    # vs assuming they're all in src/
+                    inc = os.path.join('src', line[10:-2])
+                    deps.append(inc)
+                    if inc not in dependencies:
+                        to_scan.append(inc)
+    return dependencies
 
 def main(args: list[str]):
     # clear lockfile, in case the builder crashes or w/e
     release_lock()
     if len(args) < 1:
-        return run_program(build_and_run)
+        return build_and_run()
     cmd = args[0]
     if cmd == 'watch':
-        return run_program(watch_and_build)
+        return watch_and_build()
+    if cmd == 'walk':
+        return walk_build_tree()
     print('[Error] unknown command:', cmd)
     return 1
 
