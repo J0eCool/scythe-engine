@@ -10,7 +10,7 @@ LINK="-lmingw32 -lSDL2main -lSDL2 -lSDL2_image"
 DBG_FLAGS="-fdiagnostics-color=always -g"
 
 # cleanup
-rm -f out/test
+rm -f out/testRunner
 mkdir -p out
 
 # build
@@ -20,7 +20,7 @@ cp -f $SDLBIN/SDL2_image.dll out/
 cp -f $SDLBIN/libpng16-16.dll out/
 cp -f $SDLBIN/zlib1.dll out/
 
-g++ -o out/test src/test.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK} ${DBG_FLAGS}
+g++ -o out/testRunner src/testRunner.cpp ${INCLUDE} ${LIB} ${FLAGS} ${LINK} ${DBG_FLAGS}
 
 pushd out
-./test
+./testRunner
