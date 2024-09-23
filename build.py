@@ -1,15 +1,8 @@
 import os
+import pprint
 import shutil
 import sys
 import time
-
-class BuildTarget(object):
-    def __init__(self, cmd, deps):
-        self.cmd = cmd
-        self.deps = deps
-
-    def needs_build(self):
-        return False
 
 SDL2_PATH = os.path.join('..', '..', 'SDL2-2.0.14', 'i686-w64-mingw32')
 INCLUDE='-I{}/include'.format(SDL2_PATH)
@@ -21,9 +14,7 @@ DBG_FLAGS='-fdiagnostics-color=always -g'
 LOCKFILE='out/game.dll.lock'
 
 def Program(prog):
-    print('hinkus')
     def f():
-        print('kikfkskkus')
         start = time.time()
         ret = prog()
         dt = time.time() - start
@@ -113,9 +104,18 @@ def build_and_run():
     os.system('scythe')
     return 0
 
+def cpp_to_obj(cpp: str) -> str:
+    """the name of the .o file for a given .cpp file"""
+    assert cpp.startswith('src')
+    assert cpp.endswith('.cpp')
+    return 'out'+cpp[3:-3]+'o'
+
 @Program
 def watch_and_build():
-    dependencies = scan_dependencies('program')
+    build = BuildTree('program')
+    modified = {}
+    for file in build.files:
+        modified[file] = os.path.getmtime(file)
     while True:
         # update file-changed times
         # if files changed, re-scan dependencies (which can find new files)
@@ -128,33 +128,64 @@ def watch_and_build():
         time.sleep(0.1)
     return 0
 
+class BuildTree(object):
+    def __init__(self, root_name):
+        self.dependencies = self.scan_dependencies(root_name)
+        self.files = [f for f in self.dependencies.keys()]
+        self.objs = self.init_objs()
+
+    def scan_dependencies(self, component_name: str) -> dict[str, list[str]]:
+        obj = os.path.join('out', component_name+'.o')
+        src = os.path.join('src', component_name+'.cpp')
+        to_scan = [src]
+        dependencies = {}
+        for filename in to_scan:
+            deps = []
+            dependencies[filename] = deps
+            with open(filename) as f:
+                if filename.endswith('.h') and os.path.exists(filename[:-1]+'cpp'):
+                    to_scan.append(filename[:-1]+'cpp')
+                for line in f.readlines():
+                    if line.startswith('#include "') and line.endswith('"\n'):
+                        # TODO: need to actually locate files in question
+                        # vs assuming they're all in src/
+                        inc = os.path.join('src', line[10:-2])
+                        deps.append(inc)
+                        if inc not in dependencies:
+                            to_scan.append(inc)
+        return dependencies
+    
+    def init_objs(self) -> list[tuple[str, set[str]]]:
+        """Gets all the object files to build, along with their (recursive)
+        dependencies"""
+        objs = []
+        for src in self.dependencies.keys():
+            if src.endswith('.cpp'):
+                objs.append((src, self.flatten_dependencies(src)))
+        return objs
+    
+    def flatten_dependencies(self, src: str) -> set[str]:
+        """Gets the set of recursive dependencies for a given source file"""
+        assert src in self.dependencies, "No file found for #include: {}".format(src)
+        deps = set(self.dependencies[src])
+        for dep in list(deps):
+            for rec in self.flatten_dependencies(dep):
+                deps.add(rec)
+        return deps
+
 @Program
 def walk_build_tree():
-    import pprint
     # given program.o, can we find all dependencies?
-    dependencies = scan_dependencies('program')
-    pprint.pprint(dependencies)
-
-def scan_dependencies(component_name):
-    obj = os.path.join('out', component_name+'.o')
-    src = os.path.join('src', component_name+'.cpp')
-    to_scan = [src]
-    dependencies = {}
-    for filename in to_scan:
-        deps = []
-        dependencies[filename] = deps
-        with open(filename) as f:
-            if filename.endswith('.h') and os.path.exists(filename[:-1]+'cpp'):
-                to_scan.append(filename[:-1]+'cpp')
-            for line in f.readlines():
-                if line.startswith('#include "') and line.endswith('"\n'):
-                    # TODO: need to actually locate files in question
-                    # vs assuming they're all in src/
-                    inc = os.path.join('src', line[10:-2])
-                    deps.append(inc)
-                    if inc not in dependencies:
-                        to_scan.append(inc)
-    return dependencies
+    build = BuildTree('program')
+    print('files:',)
+    pprint.pprint(build.files)
+    print('')
+    print('dependencies:',)
+    pprint.pprint(build.dependencies)
+    print('')
+    print('objs:')
+    pprint.pprint(build.objs)
+    pprint.pprint([cpp_to_obj(cpp) for cpp, _ in build.objs])
 
 def main(args: list[str]):
     # clear lockfile, in case the builder crashes or w/e
