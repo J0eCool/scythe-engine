@@ -31,7 +31,7 @@ ParticleScene::ParticleScene(Allocator *alloc, Input *input) :
 
 void ParticleScene::update(float dt) {
     _ui.startUpdate({ 120, 30 });
-    if (_ui.button("boop")) {
+    if (_ui.button("beep")) {
         createParticles();
     }
     _ui.labels((int)_particles.size(), "\n");

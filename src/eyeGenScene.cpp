@@ -223,9 +223,9 @@ EyeGenScene::EyeGenScene(Allocator *alloc, Input *input) :
 void EyeGenScene::onLoad() {
     _shouldGenerate = true;
     _params = {
-        {0.1, 0.5}, {0.9, 0.5},
-        {0.5, 0.5},
-        0.6, 0.9,
+        {0.1, 0.3}, {0.9, 0.5},
+        {0.4, 0.5},
+        0.2, 1.3,
         0.35, 0.3,
         {0x10, 0x20, 0x90},
     };

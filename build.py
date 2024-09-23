@@ -62,27 +62,16 @@ def run_cmd(cmd):
     print('cmd finished in {:.2f}s : {}'.format(dt, cmd))
     if code != 0:
         print('[Error] exited with code={}'.format(code))
+    sys.stdout.flush()
     return code == 0
 
-def build_obj(objname):
+def build_obj(cpp, obj):
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
-    print('building {0}.o...'.format(objname))
-    return run_cmd('g++ -c -o out/{0}.o src/{0}.cpp {1}'.format(objname, flags))
-
-def link_game():
-    flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
-    flags += ' -s -shared'
-    objfiles = ' '.join(['out/{}.o'.format(x) for x in [
-        "common",
-        "eyeGenScene",
-        "particleScene",
-        "program",
-    ]])
-    print('linking game.dll...')
-    return run_cmd('g++ -o out/game.dll {0} {1}'.format(objfiles, flags))
+    print('building {}...'.format(obj))
+    return run_cmd('g++ -c -o {} {} {}'.format(obj, cpp, flags))
 
 def build_scythe():
-    if not build_obj('common'):
+    if not build_obj('src/common.cpp', 'out/common.o'):
         return False
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
     print('building scythe...')
@@ -116,17 +105,40 @@ def watch_and_build():
     modified = {}
     for file in build.files:
         modified[file] = os.path.getmtime(file)
+    for file, _ in build.objs:
+        # initialize .cpp modified times to .o file times, in case we made changes
+        # before starting the watch script
+        modified[file] = os.path.getmtime(cpp_to_obj(file))
+
     while True:
-        # update file-changed times
-        # if files changed, re-scan dependencies (which can find new files)
         # for all known files, rebuild only if stale
-        if os.path.getmtime('src/particleScene.cpp') > os.path.getmtime('out/particleScene.o'):
-            if not build_obj('particleScene'):
-                continue
-            if not link_game():
-                continue
+        changed = set()
+        for file in build.files:
+            mod = os.path.getmtime(file)
+            if mod > modified[file]:
+                modified[file] = mod
+                changed.add(file)
+
+        # if files changed, re-scan dependencies (which can find new files)
+        if changed:
+            print('[watch] files changed:', len(changed))
+            build = BuildTree('program')
+            # needing to update modified times is kinda gross but aight
+            for f in build.files:
+                if f not in modified:
+                    modified[f] = os.path.getmtime(f)
+
+        # build any changes
+        did_build = False
+        for cpp, deps in build.objs:
+            if cpp in changed or any(dep in changed for dep in deps):
+                obj = cpp_to_obj(cpp)
+                if build_obj(cpp, obj):
+                    did_build = True
+        if did_build:
+            link_game(build)
+
         time.sleep(0.1)
-    return 0
 
 class BuildTree(object):
     def __init__(self, root_name):
@@ -173,8 +185,16 @@ class BuildTree(object):
                 deps.add(rec)
         return deps
 
+def link_game(build: BuildTree):
+    flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
+    flags += ' -s -shared'
+    objfiles = ' '.join(cpp_to_obj(cpp) for cpp, _ in build.objs)
+    print('linking game.dll...')
+    return run_cmd('g++ -o out/game.dll {0} {1}'.format(objfiles, flags))
+
 @Program
 def walk_build_tree():
+    """Program used to visualize build info"""
     # given program.o, can we find all dependencies?
     build = BuildTree('program')
     print('files:',)

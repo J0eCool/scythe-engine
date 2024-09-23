@@ -21,9 +21,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    log("Building game.dll...");
-    Builder builder;
-    assert(builder.buildGame(), "failed to build game.dll on launch");
+    Builder builder; // TODO: refactor Builder and remove unused code
     const char* dllName = "game.dll";
     GameDylib dll(dllName);
 
@@ -32,10 +30,10 @@ int main(int argc, char** argv) {
     Allocator allocator { malloc, calloc, free };
     void* game = dll.newGame(&allocator);
     dll.onLoad(game);
+
     // Main game loop
     while (!dll.shouldQuit(game)) {
         // reload dll if it changes
-        builder.tryRebuild();
         if (builder.shouldReload()) {
             dll.onUnload(game);
             dll.reload();

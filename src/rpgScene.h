@@ -83,6 +83,7 @@ public:
         _ui.render(renderer);
 
         renderer->drawText("Remember, you are Free", {800, 900});
+        renderer->drawText("FREE", {1200, 950});
     }
 
     void initBattle() {
