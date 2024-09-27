@@ -121,6 +121,7 @@ def watch_and_build():
 
         # if files changed, re-scan dependencies (which can find new files)
         if changed:
+            print('')
             print('[watch] files changed:', len(changed))
             build = BuildTree('program')
             # needing to update modified times is kinda gross but aight

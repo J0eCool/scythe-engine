@@ -1,6 +1,7 @@
 #pragma once
 
 #include "color.h"
+#include "rng.h"
 #include "serialize.h"
 #include "vec.h"
 
@@ -9,47 +10,6 @@
 #include <random>
 
 #include <SDL2/SDL.h>
-
-class Rng {
-    std::ranlux24_base _rand_engine;
-public:
-    Rng() {}
-
-    void seed() {
-        // random_device seems to give a consistent value in dll, so offset by
-        // ticks elapsed since program start to get new results on each reload
-        std::random_device r;
-        auto seed = r() + SDL_GetTicks();
-        _rand_engine = std::ranlux24_base(seed);
-    }
-    void seed(uint32_t s) {
-        _rand_engine.seed(s);
-    }
-
-    int Int(int limit = INT32_MAX) {
-        return std::uniform_int_distribution<int>(0, limit-1)(_rand_engine);
-    }
-    float Float(float limit = 1.0) {
-        return std::uniform_real_distribution<float>(0, limit)(_rand_engine);
-    }
-    float Float(float lo, float hi) {
-        return lerp(Float(), lo, hi);
-    }
-    Uint8 Byte() {
-        return Int(0x100);
-    }
-    /// @brief Generate a random `true` or `false` value
-    /// @param p probability of a `true` result
-    bool Bool(float p = 0.5) {
-        return Float() < p;
-    }
-    /// @brief Approximate a normal distribution by taking the average of 4 rolls.
-    /// This biases the distribution towards 0.5
-    /// @return A value between 0 and 1
-    float Normalish() {
-        return (Float() + Float() + Float() + Float()) / 4;
-    }
-};
 
 // data per grid cell
 struct NoiseSample {

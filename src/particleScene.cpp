@@ -1,16 +1,9 @@
 #include "particleScene.h"
 
 #include "common.h"
-#include "input_sdl.h"
-#include "render_sdl.h"
-#include "scene.h"
-#include "serialize.h"
-#include "ui.h"
 #include "uilib.h"
-#include "vec.h"
 
 #include <math.h>
-#include <vector>
 
 /// @brief Deletes an element from an array in O(1) time without preserving order
 template <typename T>
@@ -63,10 +56,11 @@ void ParticleScene::render(Renderer *renderer) {
 }
 
 void ParticleScene::createParticles() {
-    for (int i = 0; i < _params.numParticles; ++i) {
+    int n = _params.numParticles;
+    for (int i = 0; i < n; ++i) {
         Vec2 pos { 900, 512 };
-        float ang = TAU*i/_params.numParticles;
-        Vec2 vel = Vec2 { cos(ang), sin(ang) } * 500;
+        float ang = TAU*i/n;
+        Vec2 vel = Vec2 { cos(ang), sin(ang) } * 500 * _rng.Normalish(0.5, 2.0);
         float life = 1.2;
         _particles.push_back({pos, vel, life, 0.0});
     }

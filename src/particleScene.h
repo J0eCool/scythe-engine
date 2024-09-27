@@ -3,6 +3,7 @@
 #include "color.h"
 #include "input_sdl.h"
 #include "render_sdl.h"
+#include "rng.h"
 #include "scene.h"
 #include "ui.h"
 #include "vec.h"
@@ -22,6 +23,7 @@ struct Particle {
 class ParticleScene : public Scene {
     UI _ui;
     Input* _input;
+    Rng _rng;
 
     std::vector<Particle> _particles;
 
@@ -29,8 +31,12 @@ class ParticleScene : public Scene {
 
     bool _shouldGenerate = true;
     struct Params {
-        int numParticles = 256;
+        int numParticles = 512;
+        float duration = 0.3;
+        float speed = 500;
     } _params;
+
+    float _emitTimer = 0.0;
 
 public:
     ParticleScene(Allocator *alloc, Input *input); 

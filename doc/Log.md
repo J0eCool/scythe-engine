@@ -52,4 +52,6 @@
 	- autogenerating config reduces cognitive load when adding new scenes
 		- at the cost of the cognitive load of an entire script that handles it for me
 		- seems pyrrhic but ok
+	- immediately putting this to use and holy shit you guys incremental builds are so good, we're talking sub-second build times when messing around with particleScene.cpp here people
+	- we're talking being able to add rng.h and rng.cpp while the game is running
 - Asset auto-reloading

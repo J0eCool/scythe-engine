@@ -97,13 +97,24 @@ public:
     }
 
     bool shouldReload() {
+        // the dll may not exist if the build fails in the linking phase
+        if (!fileExists(gameDll)) {
+            // early-return cause checkFileChange will assert
+            return false;
+        }
+        // we store the need to reload as a member var because we want to
+        // be able to have the file change and defer reloading it until we're
+        // sure it's finished building
         if (checkFileChange(gameDll)) {
             _needsReload = true;
         }
         bool ret = _needsReload;
+        // if the lockfile exists, we may be in the process of writing the dll
         if (fileExists(lockfile)) {
             ret = false;
-        } else {
+        }
+        // only actually unset the flag when this returns true
+        if (ret) {
             _needsReload = false;
         }
         return ret;
