@@ -2,6 +2,7 @@
 
 #include "color.h"
 #include "rng.h"
+#include "render_sdl.h"
 #include "serialize.h"
 #include "vec.h"
 
