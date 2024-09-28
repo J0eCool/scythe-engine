@@ -14,9 +14,9 @@ DBG_FLAGS='-fdiagnostics-color=always -g'
 LOCKFILE='out/game.dll.lock'
 
 def Program(prog):
-    def f():
+    def f(*args):
         start = time.time()
-        ret = prog()
+        ret = prog(*args)
         dt = time.time() - start
         print("Total time elapsed: {:.2f}s".format(dt))
         return ret
@@ -62,7 +62,6 @@ def run_cmd(cmd):
     print('cmd finished in {:.2f}s : {}'.format(dt, cmd))
     if code != 0:
         print('[Error] exited with code={}'.format(code))
-    sys.stdout.flush()
     return code == 0
 
 def build_obj(cpp, obj):
@@ -100,7 +99,13 @@ def cpp_to_obj(cpp: str) -> str:
     return 'out'+cpp[3:-3]+'o'
 
 @Program
-def watch_and_build():
+def watch_and_build(args):
+    force_build = False
+    for arg in args:
+        if arg == '--force-build':
+            force_build = True
+        else:
+            assert False, "unknown argument: "+arg
     build = BuildTree('program')
     modified = {}
     for file in build.files:
@@ -131,14 +136,19 @@ def watch_and_build():
 
         # build any changes
         did_build = False
+        t_start = time.time()
         for cpp, deps in build.objs:
-            if cpp in changed or any(dep in changed for dep in deps):
+            if force_build or cpp in changed or any(dep in changed for dep in deps):
                 obj = cpp_to_obj(cpp)
                 if build_obj(cpp, obj):
                     did_build = True
+        force_build = False
         if did_build:
             link_game(build)
+            dt = time.time()-t_start
+            print('[watch] Total build time: {:.2f}s'.format(dt))
 
+        sys.stdout.flush()
         time.sleep(0.1)
 
 class BuildTree(object):
@@ -215,7 +225,7 @@ def main(args: list[str]):
         return build_and_run()
     cmd = args[0]
     if cmd == 'watch':
-        return watch_and_build()
+        return watch_and_build(args[1:])
     if cmd == 'walk':
         return walk_build_tree()
     print('[Error] unknown command:', cmd)
