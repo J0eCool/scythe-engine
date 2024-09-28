@@ -22,8 +22,8 @@ def Program(prog):
         return ret
     return f
 
-def create_outdir():
-    os.makedirs('out', exist_ok=True)
+def ensure_outdir():
+    os.makedirs('./out', exist_ok=True)
 
 def create_lock():
     with open(LOCKFILE, 'w') as file:
@@ -82,7 +82,7 @@ def build_scythe():
 
 @Program
 def build_and_run():
-    create_outdir()
+    ensure_outdir()
     copy_dlls()
     if not build_scythe():
         return 1
@@ -100,6 +100,8 @@ def cpp_to_obj(cpp: str) -> str:
 
 @Program
 def watch_and_build(args):
+    ensure_outdir()
+
     force_build = False
     for arg in args:
         if arg == '--force-build':
@@ -110,10 +112,14 @@ def watch_and_build(args):
     modified = {}
     for file in build.files:
         modified[file] = os.path.getmtime(file)
-    for file, _ in build.objs:
+    for cpp, _ in build.objs:
         # initialize .cpp modified times to .o file times, in case we made changes
         # before starting the watch script
-        modified[file] = os.path.getmtime(cpp_to_obj(file))
+        obj = cpp_to_obj(cpp)
+        if os.path.exists(obj):
+            modified[cpp] = os.path.getmtime(obj)
+        else:
+            modified[cpp] = 0
 
     while True:
         # for all known files, rebuild only if stale
@@ -134,19 +140,21 @@ def watch_and_build(args):
                 if f not in modified:
                     modified[f] = os.path.getmtime(f)
 
-        # build any changes
-        did_build = False
-        t_start = time.time()
-        for cpp, deps in build.objs:
-            if force_build or cpp in changed or any(dep in changed for dep in deps):
+            # build any changes
+            did_build = False
+            t_start = time.time()
+            for cpp, deps in build.objs:
                 obj = cpp_to_obj(cpp)
-                if build_obj(cpp, obj):
-                    did_build = True
-        force_build = False
-        if did_build:
-            link_game(build)
-            dt = time.time()-t_start
-            print('[watch] Total build time: {:.2f}s'.format(dt))
+                code_change = cpp in changed or any(dep in changed for dep in deps)
+                obj_missing = not os.path.exists(obj)
+                if force_build or code_change or obj_missing:
+                    if build_obj(cpp, obj):
+                        did_build = True
+            force_build = False
+            if did_build:
+                link_game(build)
+                dt = time.time()-t_start
+                print('[watch] Total build time: {:.2f}s'.format(dt))
 
         sys.stdout.flush()
         time.sleep(0.1)
