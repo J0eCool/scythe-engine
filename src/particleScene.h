@@ -13,9 +13,11 @@
 struct Particle {
     Vec2 pos;
     Vec2 vel;
+    float gravity;
     float lifetime;
+    float size;
 
-    float age;
+    float age = 0.0;
 
     void update(float dt);
 };
@@ -32,8 +34,10 @@ class ParticleScene : public Scene {
     bool _shouldGenerate = true;
     struct Params {
         int numParticles = 512;
-        float duration = 0.3;
+        float duration = 1.5;
         float speed = 500;
+        float gravity = 0;
+        float size = 7;
     } _params;
 
     float _emitTimer = 0.0;

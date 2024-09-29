@@ -65,6 +65,14 @@ void log(const char* fmt, Ts... args) {
     }
 }
 
+#define log_once(...) { \
+    static bool _logonce_impl_##__LINE__ = false; \
+    if (!_logonce_impl_##__LINE__) { \
+        _logonce_impl_##__LINE__ = true; \
+        log(__VA_ARGS__); \
+    } \
+}
+
 extern bool debug_isTracing;
 // for debugging crashes
 class Tracer {

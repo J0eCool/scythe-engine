@@ -14,6 +14,7 @@ void quickRemove(std::vector<T> &elems, size_t idx) {
 }
 
 void Particle::update(float dt) {
+    vel.y += gravity*dt;
     pos += vel*dt;
     age += dt;
 }
@@ -24,12 +25,16 @@ ParticleScene::ParticleScene(Allocator *alloc, Input *input) :
 
 void ParticleScene::update(float dt) {
     _ui.startUpdate({ 120, 30 });
-    if (_ui.button("beep")) {
+    if (_input->didPress("click")) {
         createParticles();
     }
     _ui.labels((int)_particles.size(), "\n");
 
-    uiParam(_ui, "num", _params.numParticles, 1, 1, 1000);
+    uiParam(_ui, "num", _params.numParticles, 1, 1, 1024);
+    uiParam<float>(_ui, "duration", _params.duration, 0.1, 0.0, 5.0);
+    uiParam<float>(_ui, "speed", _params.speed, 100, 0, 2500);
+    uiParam<float>(_ui, "gravity", _params.gravity, 250, 0, 7500);
+    uiParam<float>(_ui, "size", _params.size, 1, 0, 100);
 
     std::vector<int> toRemove;
     for (int i = 0; i < _particles.size(); ++i) {
@@ -49,7 +54,7 @@ void ParticleScene::render(Renderer *renderer) {
 
     renderer->setColor(1.0, 0.23, 0.05);
     for (auto p : _particles) {
-        renderer->drawRect(p.pos, {10, 10});
+        renderer->drawRect(p.pos, {p.size});
     }
 
     _ui.render(renderer);
@@ -58,10 +63,14 @@ void ParticleScene::render(Renderer *renderer) {
 void ParticleScene::createParticles() {
     int n = _params.numParticles;
     for (int i = 0; i < n; ++i) {
-        Vec2 pos { 900, 512 };
+        Vec2 pos = _input->getMousePos();
         float ang = TAU*i/n;
-        Vec2 vel = Vec2 { cos(ang), sin(ang) } * 500 * _rng.Normalish(0.5, 2.0);
-        float life = 1.2;
-        _particles.push_back({pos, vel, life, 0.0});
+        Particle p;
+        p.pos = pos;
+        p.vel = Vec2 { cos(ang), sin(ang) } * _params.speed * _rng.Normalish(0.5, 2.0);
+        p.gravity = _params.gravity;
+        p.lifetime = _params.duration;
+        p.size = _params.size;
+        _particles.push_back(p);
     }
 }
