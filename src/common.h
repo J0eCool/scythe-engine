@@ -44,7 +44,7 @@ bool check(bool cond, const char* msg, Ts... args) {
     return cond;
 }
 template <typename... Ts>
-void assert(bool cond, const char* msg, Ts... args) {
+void assert(bool cond, const char* msg = "()", Ts... args) {
     if (!cond) {
         printf("Fatal Error: ");
         printf(msg, args...);

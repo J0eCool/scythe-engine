@@ -60,6 +60,13 @@ struct Vec2x {
 #error "if you were using BIN_OP for something, we use it here then undefine it"
 #endif
 
+#define BIN_OP_LIST \
+    BIN_OP(+) \
+    BIN_OP(-) \
+    BIN_OP(*) \
+    BIN_OP(/) \
+    BIN_OP(%)
+
 #define BIN_OP(op) \
     Vec2x operator op(Vec2x const& v) const { \
         return Vec2x {x op v.x, y op v.y};\
@@ -72,11 +79,8 @@ struct Vec2x {
         y op##= v.y; \
         return *this; \
     }
-    BIN_OP(+)
-    BIN_OP(-)
-    BIN_OP(*)
-    BIN_OP(/)
-    BIN_OP(%)
+    BIN_OP_LIST
+// we redefine the BIN_OP symbol a few times, the undefs just make it look nicer
 #undef BIN_OP
 };
 #define BIN_OP(op) \
@@ -84,11 +88,7 @@ struct Vec2x {
     Vec2x<T> operator op(T s, Vec2x<T> const& v) { \
         return Vec2x<T>(s op v.x, s op v.y);\
     }
-BIN_OP(+)
-BIN_OP(-)
-BIN_OP(*)
-BIN_OP(/)
-BIN_OP(%)
+BIN_OP_LIST
 #undef BIN_OP
 
 template <typename T>
@@ -200,6 +200,17 @@ struct Vec3x {
         return a.cross(b);
     }
 
+    /// returns a new vec with a function applied to each element
+    Vec3x fmap(T (*f)(T)) const {
+        return {f(x), f(y), f(z)};
+    }
+
+    T& operator[](int idx) {
+        // bounds-checking is for cowards... and today I am a coward
+        assert(idx >= 0 && idx <= 2);
+        return (&x)[idx];
+    }
+
     // swizzling functions
     Vec2x<T> xy() const { return Vec2x<T> {x, y}; }
     Vec2x<T> xz() const { return Vec2x<T> {x, z}; }
@@ -219,11 +230,7 @@ struct Vec3x {
         z op##= v.z; \
         return *this; \
     }
-    BIN_OP(+)
-    BIN_OP(-)
-    BIN_OP(*)
-    BIN_OP(/)
-    BIN_OP(%)
+    BIN_OP_LIST
 #undef BIN_OP
 };
 #define BIN_OP(op) \
@@ -231,11 +238,7 @@ struct Vec3x {
     Vec3x<T> operator op(T s, Vec3x<T> const& v) { \
         return Vec3x<T>(s op v.x, s op v.y, s op v.z);\
     }
-BIN_OP(+)
-BIN_OP(-)
-BIN_OP(*)
-BIN_OP(/)
-BIN_OP(%)
+BIN_OP_LIST
 #undef BIN_OP
 
 template <typename T>

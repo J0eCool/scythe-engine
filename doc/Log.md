@@ -54,4 +54,9 @@
 		- seems pyrrhic but ok
 	- immediately putting this to use and holy shit you guys incremental builds are so good, we're talking sub-second build times when messing around with particleScene.cpp here people
 	- we're talking being able to add rng.h and rng.cpp while the game is running
+- Bug: CPU usage increases over time
+	- happens when left on Particles screen overnight (after at least one hot-reload)
+	- Trial 2: opened game and touched nothing, sat on TexGen screen, CPU increased to 4% after 5-8 hours (fckin yikes)
+		- switching to other screens and back, CPU drops to 2% and stays there even after switching back to TexGen
+		- after 8-10 more hours, CPU is up to 11% (and things are considerably slower), persists after switching screens
 - Asset auto-reloading
