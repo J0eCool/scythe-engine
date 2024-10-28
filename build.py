@@ -13,14 +13,56 @@ DBG_FLAGS='-fdiagnostics-color=always -g'
 
 LOCKFILE='out/game.dll.lock'
 
-def Program(prog):
-    def f(*args):
-        start = time.time()
-        ret = prog(*args)
-        dt = time.time() - start
-        print("Total time elapsed: {:.2f}s".format(dt))
-        return ret
-    return f
+# console colors enum
+class Color(object):
+    DEFAULT = '\033[0m'
+
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    PURPLE = '\033[95m'
+    CYAN = '\033[96m'
+
+    BOLD = '\033[1m'
+    FAINT = '\033[2m'
+    ITALIC = '\033[3m'
+    UNDERLINE = '\033[4m'
+
+Color.INFO = Color.BLUE
+Color.OK = Color.GREEN
+Color.ERR = Color.RED
+
+LOG_STATE = '' #ideally this would be an object but this'll do for now
+def log(color, *args, header=None):
+    header = header or LOG_STATE
+    print(color, " [", header, "] ", Color.DEFAULT, sep='', end='')
+    print(*args)
+def logh(header, *args):
+    log(*args, header=header)
+
+# Program is a meta-decorator
+# @Program('foo') def bar():
+#  ->
+# bar = decorator(bar)
+def Program(name):
+    """Top-level program to run from cmdline arg"""
+    def decorator(program_fn):
+        def f(*args):
+            # common setup
+            global LOG_STATE
+            LOG_STATE = name
+            start = time.time()
+
+            # run program
+            ret = program_fn(*args)
+
+            # exit logging
+            dt = time.time() - start
+            log(Color.INFO, "Total time elapsed: {:.2f}s".format(dt))
+            return ret
+        return f
+    return decorator
 
 def ensure_outdir():
     os.makedirs('./out', exist_ok=True)
@@ -59,28 +101,31 @@ def run_cmd(cmd):
 
     # logging
     dt = time.time()-start
-    print('cmd finished in {:.2f}s : {}'.format(dt, cmd))
+
+    color = Color.OK if code == 0 else Color.ERR
+    log(color, 'cmd finished in {:.2f}s : {}'.format(dt, cmd))
     if code != 0:
-        print('[Error] exited with code={}'.format(code))
+        logh('Error', Color.ERR, 'exited with code={}'.format(code))
     return code == 0
 
 def build_obj(cpp, obj):
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
-    print('building {}...'.format(obj))
+    log(Color.INFO, 'building {}...'.format(obj))
     return run_cmd('g++ -c -o {} {} {}'.format(obj, cpp, flags))
 
 def build_scythe():
     if not build_obj('src/common.cpp', 'out/common.o'):
         return False
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
-    print('building scythe...')
+    log(Color.INFO, 'building scythe...')
     sys.stdout.flush()
     if os.system('g++ -o out/scythe out/common.o src/scythe.cpp ' + flags) != 0:
-        print('  error building scythe')
+        log(Color.ERR, '  error building scythe')
         return False
+    log(Color.OK, '  build successful')
     return True
 
-@Program
+@Program('run')
 def build_and_run():
     ensure_outdir()
     copy_dlls()
@@ -98,7 +143,7 @@ def cpp_to_obj(cpp: str) -> str:
     assert cpp.endswith('.cpp')
     return 'out'+cpp[3:-3]+'o'
 
-@Program
+@Program('watch')
 def watch_and_build(args):
     ensure_outdir()
 
@@ -133,7 +178,7 @@ def watch_and_build(args):
         # if files changed, re-scan dependencies (which can find new files)
         if changed:
             print('')
-            print('[watch] files changed:', len(changed))
+            log(Color.INFO, 'files changed:', len(changed))
             build = BuildTree('program')
             # needing to update modified times is kinda gross but aight
             for f in build.files:
@@ -154,7 +199,7 @@ def watch_and_build(args):
             if did_build:
                 link_game(build)
                 dt = time.time()-t_start
-                print('[watch] Total build time: {:.2f}s'.format(dt))
+                log(Color.INFO, 'Total build time: {:.2f}s'.format(dt))
 
         sys.stdout.flush()
         time.sleep(0.1)
@@ -208,23 +253,23 @@ def link_game(build: BuildTree):
     flags = ' '.join([INCLUDE, LIB, FLAGS, LINK, DBG_FLAGS])
     flags += ' -s -shared'
     objfiles = ' '.join(cpp_to_obj(cpp) for cpp, _ in build.objs)
-    print('linking game.dll...')
+    log(Color.INFO, 'linking game.dll...')
     return run_cmd('g++ -o out/game.dll {0} {1}'.format(objfiles, flags))
 
-@Program
+@Program('walk')
 def walk_build_tree():
     """Program used to visualize build info"""
     # given program.o, can we find all dependencies?
     build = BuildTree('program')
-    print('files:',)
+    log(Color.INFO, 'files:')
     pprint.pprint(build.files)
     print('')
-    print('dependencies:',)
+    log(Color.INFO, 'dependencies:')
     pprint.pprint(build.dependencies)
     print('')
-    print('objs:')
+    log(Color.INFO, 'objs:')
     pprint.pprint(build.objs)
-    pprint.pprint([cpp_to_obj(cpp) for cpp, _ in build.objs])
+    print([cpp_to_obj(cpp) for cpp, _ in build.objs])
 
 def main(args: list[str]):
     # clear lockfile, in case the builder crashes or w/e
@@ -236,7 +281,7 @@ def main(args: list[str]):
         return watch_and_build(args[1:])
     if cmd == 'walk':
         return walk_build_tree()
-    print('[Error] unknown command:', cmd)
+    logh('Error', Color.ERR, 'unknown command:', cmd)
     return 1
 
 if __name__ == '__main__':
