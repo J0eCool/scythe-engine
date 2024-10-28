@@ -46,6 +46,10 @@ std::istream& operator>>(std::istream &stream, Color &c) {
     return stream;
 }
 
+bool operator<(GradientStep a, GradientStep b) {
+    return a.pos < b.pos;
+}
+
 std::ostream& operator<<(std::ostream &stream, Gradient const& gradient) {
     stream << gradient.steps.size() << ' ';
     for (auto &step : gradient.steps) {

@@ -13,6 +13,7 @@
 #include "uilib.h"
 #include "vec.h"
 
+#include <algorithm>
 #include <math.h>
 
 class TexGenScene : public Scene {
@@ -33,7 +34,7 @@ public:
     }
 
     void onLoad() override {
-        _shouldGenerate = true;
+        _shouldGenerate = true; 
 
         loadParams();
     }
@@ -106,6 +107,20 @@ public:
             _texGen->texParams.gradient = Gradient{};
             _shouldGenerate = true;
             colorIdx = 0;
+        }
+        if (_ui.button("RANDOMIZE")) {
+            auto& params = _texGen->texParams;
+            for (auto &step : params.gradient.steps) {
+                step.color.r = rand() % 256;
+                step.color.g = rand() % 256;
+                step.color.b = rand() % 256;
+                step.pos = (rand() % 1024) / 1024.0;
+            }
+            params.gradient.steps[0].pos = 0;
+            params.gradient.steps[1].pos = 1;
+            std::sort(params.gradient.steps.begin(), params.gradient.steps.end());
+            _texGen->reroll();
+            _shouldGenerate = true;
         }
         _ui.line();
         int nColors = steps.size();

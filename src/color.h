@@ -36,10 +36,13 @@ Color rgbColor(float r, float g, float b, float a = 1.0f);
 Color hsvColor(float h, float s, float v);
 std::ostream& operator<<(std::ostream &stream, Color const& c);
 std::istream& operator>>(std::istream &stream, Color &c);
+
 struct GradientStep {
     Color color;
     float pos; // [0, 1], what value of the gradient is set to this color
 };
+
+bool operator<(GradientStep a, GradientStep b);
 
 struct Gradient {
     std::vector<GradientStep> steps;
@@ -61,6 +64,10 @@ struct Gradient {
         float s = (t-steps[i].pos) / (steps[i+1].pos-steps[i].pos);
         return lerp(s, steps[i].color, steps[i+1].color);
     }
+
+    // todo:
+    /// @brief Ensures steps are monotonically increasing in pos by sorting them
+    // void sort();
 };
 
 std::ostream& operator<<(std::ostream &stream, Gradient const& gradient);
