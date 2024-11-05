@@ -107,15 +107,9 @@ void UI::region(Vec2 pos) {
 }
 
 void UI::render(Renderer* renderer) {
-    // only iterate up to _elemIdx, because we may have fewer elems visible
-    // this frame than have ever been created
-    for (int i = 0; i < _elemIdx; ++i) {
-        _elements[i].render(renderer);
-    }
-
     // draw a line to closest interactable UI element to the mouse
     Vec2 mouse = _input->getMousePos();
-    Rect closest;
+    Vec2 closest;
     for (auto &elem : _elements) {
         // Maybe<Rect> getInteractRect (or std::vector<Rect> for multi-thing widgets)
         // could using Maybe = std::optional
@@ -127,16 +121,22 @@ void UI::render(Renderer* renderer) {
         } else {
             continue; // return {}
         }
+        Vec2 pos = rect.pos + rect.size/2;
 
         // pick the closer one
-        if ((rect.pos-mouse).len2() < (closest.pos-mouse).len2()) {
-            closest = rect;
+        if ((pos-mouse).len2() < (closest-mouse).len2()) {
+            closest = pos;
         }
     }
-
-    // todo: snap to rect border
+    // draw this before the actual UI so it renders beneath it
     renderer->setColor(Color::red);
-    renderer->drawLine(mouse, closest.pos + closest.size/2);
+    renderer->drawLine(mouse, closest);
+
+    // only iterate up to _elemIdx, because we may have stale elems at the end
+    // of the array
+    for (int i = 0; i < _elemIdx; ++i) {
+        _elements[i].render(renderer);
+    }
 }
 
 bool UI::button(const char* label) {
