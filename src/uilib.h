@@ -2,6 +2,8 @@
 
 #include "ui.h"
 
+#include <cstring>
+
 template <typename T>
 bool uiParamMult(UI &ui, const char* text, T &val, T mult, T lo, T hi) {
     return uiParam(ui, text, val, val/mult, val*mult, lo, hi);
