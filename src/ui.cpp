@@ -112,6 +112,31 @@ void UI::render(Renderer* renderer) {
     for (int i = 0; i < _elemIdx; ++i) {
         _elements[i].render(renderer);
     }
+
+    // draw a line to closest interactable UI element to the mouse
+    Vec2 mouse = _input->getMousePos();
+    Rect closest;
+    for (auto &elem : _elements) {
+        // Maybe<Rect> getInteractRect (or std::vector<Rect> for multi-thing widgets)
+        // could using Maybe = std::optional
+        Rect rect;
+        if (elem.kind == uiButton) {
+            rect = { elem.button.pos, elem.button.size };
+        } else if (elem.kind == uiSlider) {
+            rect = elem.slider.tabRect();
+        } else {
+            continue; // return {}
+        }
+
+        // pick the closer one
+        if ((rect.pos-mouse).len2() < (closest.pos-mouse).len2()) {
+            closest = rect;
+        }
+    }
+
+    // todo: snap to rect border
+    renderer->setColor(Color::red);
+    renderer->drawLine(mouse, closest.pos + closest.size/2);
 }
 
 bool UI::button(const char* label) {
