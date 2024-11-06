@@ -69,7 +69,9 @@ private:
     bool fileExists(const char* filename) {
         HANDLE file = CreateFile(filename, 0, 0, nullptr,
             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        return file != INVALID_HANDLE_VALUE;
+        bool ret = file != INVALID_HANDLE_VALUE;
+        CloseHandle(file);
+        return ret;
     }
 
     // caution, stateful
