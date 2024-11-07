@@ -31,6 +31,7 @@ class Color(object):
 
 Color.INFO = Color.BLUE
 Color.OK = Color.GREEN
+Color.WARN = Color.YELLOW
 Color.ERR = Color.RED
 
 LOG_STATE = '' #ideally this would be an object but this'll do for now
@@ -100,10 +101,17 @@ def run_cmd(cmd):
     release_lock()
 
     # logging
-    dt = time.time()-start
+    elapsed = time.time()-start
 
     color = Color.OK if code == 0 else Color.ERR
-    log(color, 'cmd finished in {:.2f}s : {}'.format(dt, cmd))
+    time_color = Color.OK
+    if elapsed > 2.0:
+        time_color = Color.WARN
+    if elapsed > 5.0:
+        time_color = Color.ERR
+    log(color, 'cmd finished in {}{:.2f}{}s : {}'.format(
+        time_color, elapsed, Color.DEFAULT, cmd
+    ))
     if code != 0:
         logh('Error', Color.ERR, 'exited with code={}'.format(code))
     return code == 0
@@ -196,11 +204,20 @@ def watch_and_build(args):
                     if build_obj(cpp, obj):
                         did_build = True
             force_build = False
+
+            # relink the .dll if any objs changed
             if did_build:
                 link_game(build)
-                dt = time.time()-t_start
-                log(Color.INFO, 'Total build time: {:.2f}s'.format(dt))
-
+                elapsed = time.time() - t_start
+                color = Color.OK
+                if elapsed > 5.0:
+                    color = Color.WARN
+                if elapsed > 30.0:
+                    color = Color.ERR
+                log(Color.INFO, 'Total build time: {}{:.2f}{}s'.format(
+                    color, elapsed, Color.DEFAULT,
+                ))
+    
         sys.stdout.flush()
         time.sleep(0.1)
 
