@@ -5,6 +5,7 @@
 #include "ui.h"
 #include "vec.h"
 
+#include "audioScene.h"
 #include "eyeGenScene.h"
 #include "gameScene.h"
 #include "particleScene.h"
@@ -79,6 +80,8 @@ struct Program {
             _allocator->knew<RpgScene>(_allocator, &_input)});
         _scenes.push_back({"particles",
             _allocator->knew<ParticleScene>(_allocator, &_input)});
+        _scenes.push_back({"audio",
+            _allocator->knew<AudioScene>(_allocator, &_input)});
         for (auto desc : _scenes) {
             desc.scene->onLoad();
         }
