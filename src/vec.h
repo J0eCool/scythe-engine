@@ -13,6 +13,12 @@ struct Vec2x {
     Vec2x(T s) : x(s), y(s) {}
     Vec2x(T _x, T _y) : x(_x), y(_y) {}
 
+    /// @brief unit vec pointing at `angle`
+    /// @param angle clockwise rotation from (1, 0), in radians
+    static Vec2x unit(float angle) {
+        return { cos(angle), sin(angle) };
+    }
+
     template <typename U>
     Vec2x<U> to() const {
         return Vec2x<U>{U(x), U(y)};

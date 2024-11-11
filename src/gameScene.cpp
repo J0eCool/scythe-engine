@@ -4,8 +4,13 @@ Entity::Entity(Vec3 pos, Vec3 vel, Vec2 size)
     : _pos(pos), _vel(vel), _size(size) {
 }
 
+/// @brief Helper function; projects worldspace to screenspace
+Vec2 project(Vec3 v) {
+    return { v.x, v.y*0.5f + v.z};
+}
+
 void Entity::render(Renderer* renderer) {
-    renderer->drawRect({_pos.x, _pos.y+_pos.z}, _size);
+    renderer->drawRect(project(_pos), _size);
 }
 
 Bullet::Bullet(Vec3 pos, Vec3 vel, float lifespan)
@@ -42,6 +47,8 @@ void Player::update(float dt) {
     const float accel = 600;
     const float gravity = 2000;
     float jumpHeight = 150;
+
+    _spinT += dt;
 
     Vec3 inDir = {_input->getAxis("horizontal"), _input->getAxis("vertical"), 0};
     if (inDir.x > 0) {
@@ -82,12 +89,23 @@ void Player::update(float dt) {
 }
 
 void Player::render(Renderer* renderer) {
+    // shadow (draws first because it's in the background)
     renderer->setColor(0.2, 0.2, 0.2, 1);
     float shadow = 10;
-    renderer->drawRect(_pos.xy() + Vec2 {-shadow, _size.y-shadow},
+    renderer->drawRect(project(_pos.xy()) + Vec2 {-shadow, _size.y-shadow},
         {_size.x + 2*shadow, 2*shadow});
+
+    // player
     renderer->setColor(0, 1, 1, 1);
-    renderer->drawRect({_pos.x, _pos.y+_pos.z}, _size);
+    renderer->drawRect(project(_pos), _size);
+
+    // spinny widget
+    renderer->setColor(1, 0, 1, 1);
+    renderer->drawRect(project(widgetPos()), {25,25});
+}
+
+Vec3 Player::widgetPos() const {
+    return _pos + 50.0f*Vec2::unit(0.15f*_spinT*TAU);
 }
 
 GameScene::GameScene(Input* input, TexGen *texGen, TexGenScene* texScene) :
@@ -97,7 +115,7 @@ GameScene::GameScene(Input* input, TexGen *texGen, TexGenScene* texScene) :
 void GameScene::update(float dt) {
     if (_input->didPress("shoot")) {
         Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
-        Bullet bullet {_player._pos, vel, 1.5};
+        Bullet bullet {_player.widgetPos(), vel, 1.5};
         _bullets.push_back(bullet);
     }
 
@@ -121,6 +139,7 @@ void GameScene::update(float dt) {
 
 void GameScene::render(Renderer* renderer) {
     Vec2 tileSize = _texScene->tileSize();
+    tileSize.y /= 2;
     int w = ceil(screenSize.x/tileSize.x);
     int h = ceil(screenSize.y/tileSize.y);
     for (int i = 0; i < w; ++i) {
