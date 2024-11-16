@@ -19,6 +19,7 @@ struct Vec2x {
         return { cos(angle), sin(angle) };
     }
 
+    /// @brief Conversion func, casts each component to new type
     template <typename U>
     Vec2x<U> to() const {
         return Vec2x<U>{U(x), U(y)};
@@ -60,6 +61,13 @@ struct Vec2x {
     }
     static inline T cross(Vec2x const& a, Vec2x const& b) {
         return a.cross(b);
+    }
+
+    bool operator==(Vec2x const& v) {
+        return x==v.x && y==v.y;
+    }
+    bool operator!=(Vec2x const& v) {
+        return !(*this == v);
     }
 
 #ifdef BIN_OP

@@ -38,9 +38,11 @@ struct Bullet : public Entity {
 };
 
 struct Player : public Entity {
-    bool _facingRight = true;
     bool _isOnGround = false;
     float _spinT = 0.0;
+
+    Vec2 _headingDir; // direction the human is pressing
+    Vec2 _aimingDir {1,0}; // direction character is aiming (normalized)
 
     /// HACK: we set this in game->update, which is a terrible way to do this
     const Input* _input;

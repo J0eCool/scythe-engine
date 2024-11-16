@@ -69,7 +69,7 @@ void Input::update() {
             auto it = _ctrlaxes.find(event.caxis.axis);
             if (it != _ctrlaxes.end()) {
                 float v = (float)event.caxis.value / __INT16_MAX__;
-                const float deadzone = 0.1f;
+                const float deadzone = 0.2f;
                 if (abs(v) < deadzone) {
                     v = 0;
                 }

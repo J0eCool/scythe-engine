@@ -59,4 +59,5 @@
 	- Trial 2: opened game and touched nothing, sat on TexGen screen, CPU increased to 4% after 5-8 hours (fckin yikes)
 		- switching to other screens and back, CPU drops to 2% and stays there even after switching back to TexGen
 		- after 8-10 more hours, CPU is up to 11% (and things are considerably slower), persists after switching screens
+	- Fix: looking at the process in Resource Monitor, we had a bunch of open file handles for game.dll. This is because to check the last modified time, we first needed to get a file handle, which we were failing to release
 - Asset auto-reloading

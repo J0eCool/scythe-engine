@@ -44,26 +44,25 @@ Player::Player() : Entity(
 
 void Player::update(float dt) {
     float speed = 300;
-    const float accel = 600;
+    const float accel = 3000;
     const float gravity = 2000;
     float jumpHeight = 150;
 
     _spinT += dt;
 
-    Vec3 inDir = {_input->getAxis("horizontal"), _input->getAxis("vertical"), 0};
-    if (inDir.x > 0) {
-        _facingRight = true;
-    } else if (inDir.x < 0) {
-        _facingRight = false;
+    _headingDir = {_input->getAxis("horizontal"), _input->getAxis("vertical")};
+    if (_headingDir != Vec2 {0}) {
+        _aimingDir = _headingDir;
     }
-    // dampen movement when 
+    Vec3 inDir {_headingDir};
 
-    const float dampening = 1.5;
     for (int i = 0; i < 2; ++i) {
+        // dampen movement when pressing away from current direction
+        const float dampening = 1.5;
         inDir[i] -= (sign(inDir[i]) != sign(_vel[i])) * sign(_vel[i])*dampening;
 
         Vec3 delta = dt*accel * inDir;
-        if (delta.x*_vel[i] < 0 && abs(delta[i]) > abs(_vel[i])) {
+        if (delta[i]*_vel[i] < 0 && abs(delta[i]) > abs(_vel[i])) {
             _vel[i] = 0;
         } else {
             _vel[i] += delta[i];
@@ -76,6 +75,7 @@ void Player::update(float dt) {
         _vel.z = -sqrt(2*gravity*jumpHeight);
         _isOnGround = false;
     }
+    // reduce jump speed on release, gives control of jump height
     if (_input->didRelease("jump") && _vel.z < 0) {
         _vel.z = 0.3*_vel.z;
     }
@@ -102,6 +102,14 @@ void Player::render(Renderer* renderer) {
     // spinny widget
     renderer->setColor(1, 0, 1, 1);
     renderer->drawRect(project(widgetPos()), {25,25});
+
+    // debug input reticle
+    renderer->setColor(1, 0, 0, 1);
+    const Vec2 reticleSize {16};
+    renderer->drawRect(project(_pos)
+            + 100.0f*_headingDir
+            + (_size-reticleSize)/2,
+        reticleSize);
 }
 
 Vec3 Player::widgetPos() const {
@@ -114,7 +122,7 @@ GameScene::GameScene(Input* input, TexGen *texGen, TexGenScene* texScene) :
 
 void GameScene::update(float dt) {
     if (_input->didPress("shoot")) {
-        Vec2 vel { (_player._facingRight ? 1.0f : -1.0f) * 2000.0f, 0.0f };
+        Vec2 vel = 2000.0f * _player._aimingDir;
         Bullet bullet {_player.widgetPos(), vel, 1.5};
         _bullets.push_back(bullet);
     }
