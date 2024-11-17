@@ -52,12 +52,12 @@ struct Program {
         SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0xff, 0xff, 0xff));
         SDL_UpdateWindowSurface(_window);
 
-        SDL_Renderer* renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
-        assert_SDL(renderer, "renderer creation failed");
+        SDL_Renderer* sdlRenderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
+        assert_SDL(sdlRenderer, "renderer creation failed");
         /// HACK: we should probably allocate _renderer directly as a struct member
         /// we heap-allocate it because it's easier than dealing with constructor shenanigans
         _renderer = (Renderer*)_allocator->calloc(1, sizeof(Renderer));
-        new (_renderer) Renderer(renderer);
+        new (_renderer) Renderer(sdlRenderer);
     }
 
     ~Program() {
