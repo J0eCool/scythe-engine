@@ -42,13 +42,16 @@ def log(color, *args, header=None):
 def logh(header, *args):
     log(*args, header=header)
 
+COMMANDS = []
 # Program is a meta-decorator
 # @Program('foo') def bar():
 #  ->
 # bar = decorator(bar)
 def Program(name):
     """Top-level program to run from cmdline arg"""
+
     def decorator(program_fn):
+        global COMMANDS
         def f(*args):
             # common setup
             global LOG_STATE
@@ -62,6 +65,8 @@ def Program(name):
             dt = time.time() - start
             log(Color.INFO, "Total time elapsed: {:.2f}s".format(dt))
             return ret
+
+        COMMANDS.append((name, f))
         return f
     return decorator
 
@@ -152,7 +157,7 @@ def cpp_to_obj(cpp: str) -> str:
     return 'out'+cpp[3:-3]+'o'
 
 @Program('watch')
-def watch_and_build(args):
+def watch_and_build(*args):
     ensure_outdir()
 
     force_build = False
@@ -184,7 +189,7 @@ def watch_and_build(args):
                 changed.add(file)
 
         # if files changed, re-scan dependencies (which can find new files)
-        if changed:
+        if changed or force_build:
             print('')
             log(Color.INFO, 'files changed:', len(changed))
             build = BuildTree('program')
@@ -292,12 +297,15 @@ def main(args: list[str]):
     # clear lockfile, in case the builder crashes or w/e
     release_lock()
     if len(args) < 1:
-        return build_and_run()
+        print('usage: python build.py [command]')
+        print('valid commands:')
+        for (name, f) in COMMANDS:
+            print('  -', name)
+        return 0
     cmd = args[0]
-    if cmd == 'watch':
-        return watch_and_build(args[1:])
-    if cmd == 'walk':
-        return walk_build_tree()
+    for (name, f) in COMMANDS:
+        if cmd == name:
+            return f(*args[1:])
     logh('Error', Color.ERR, 'unknown command:', cmd)
     return 1
 
