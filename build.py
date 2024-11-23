@@ -293,6 +293,60 @@ def walk_build_tree():
     pprint.pprint(build.objs)
     print([cpp_to_obj(cpp) for cpp, _ in build.objs])
 
+@Program('test')
+def run_tests():
+    """Automatically run unit test program when source files change"""
+    build = BuildTree('program')
+    modified = {}
+    for file in build.files:
+        modified[file] = os.path.getmtime(file)
+    for cpp, _ in build.objs:
+        # initialize .cpp modified times to .o file times, in case we made changes
+        # before starting the watch script
+        obj = cpp_to_obj(cpp)
+        if os.path.exists(obj):
+            modified[cpp] = os.path.getmtime(obj)
+        else:
+            modified[cpp] = 0
+
+    first_run = True
+    while True:
+        # for all known files, rebuild only if stale
+        changed = set()
+        for file in build.files:
+            mod = os.path.getmtime(file)
+            if mod > modified[file]:
+                modified[file] = mod
+                changed.add(file)
+
+        if changed or first_run:
+            print('')
+            if not first_run:
+                log(Color.INFO, 'files changed:', len(changed))
+            first_run = False
+            # if files changed, re-scan dependencies (which can find new files)
+            build = BuildTree('program')
+            # needing to update modified times is kinda gross but aight
+            for f in build.files:
+                if f not in modified:
+                    modified[f] = os.path.getmtime(f)
+
+            t_start = time.time()
+            run_cmd('sh ./test.sh')
+
+            elapsed = time.time() - t_start
+            color = Color.OK
+            if elapsed > 2.5:
+                color = Color.WARN
+            if elapsed > 10.0:
+                color = Color.ERR
+            log(Color.INFO, 'Total build time: {}{:.2f}{}s'.format(
+                color, elapsed, Color.DEFAULT,
+            ))
+    
+        sys.stdout.flush()
+        time.sleep(0.1)
+
 def main(args: list[str]):
     # clear lockfile, in case the builder crashes or w/e
     release_lock()
