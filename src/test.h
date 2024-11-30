@@ -40,7 +40,7 @@ int push_test_case(TestCase tc) {
 #define TEST_EQ(actual, expected) \
     TEST_EQ_MSG(actual, expected, #actual " != " #expected)
 #define TEST_EQ_MSG(actual, expected, message) \
-    if (actual != expected) { \
+    if ((actual) != (expected)) { \
         return TestResult { Failed, message }; \
     }
 
